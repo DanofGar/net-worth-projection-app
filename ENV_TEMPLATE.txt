@@ -1,0 +1,37 @@
+# ============================================
+# TELLER API CONFIGURATION
+# ============================================
+
+# Paste the ENTIRE contents of cert_b64.txt here (the very long base64 string)
+# It should be one continuous line with no breaks
+TELLER_CERT_B64=
+
+# Paste the ENTIRE contents of key_b64.txt here (the very long base64 string)
+# It should be one continuous line with no breaks
+TELLER_KEY_B64=
+
+# Paste your Teller App ID here (looks like: app_abc123xyz456)
+TELLER_APP_ID=
+
+# Leave this as "sandbox" for testing, or change to "production" when going live
+TELLER_ENV=sandbox
+
+# Paste the SAME Teller App ID here again (same value as TELLER_APP_ID above)
+NEXT_PUBLIC_TELLER_APP_ID=
+
+# Leave this as "sandbox" for testing, or change to "production" when going live
+NEXT_PUBLIC_TELLER_ENV=sandbox
+
+# ============================================
+# SUPABASE CONFIGURATION
+# ============================================
+
+# Paste your Supabase Project URL here (looks like: https://abcdefgh.supabase.co)
+NEXT_PUBLIC_SUPABASE_URL=
+
+# Paste your Supabase "anon public" key here (the long string starting with eyJ...)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Paste your Supabase "service_role" key here (the long string starting with eyJ...)
+# WARNING: This is a secret key - don't share it publicly!
+SUPABASE_SERVICE_KEY=
