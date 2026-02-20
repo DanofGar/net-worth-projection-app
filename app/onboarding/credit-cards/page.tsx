@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createBrowserClient } from '@/lib/supabase';
 
 interface CreditCard {
@@ -22,7 +23,7 @@ export default function CreditCardsPage() {
     async function checkAuthAndFetchCreditCards() {
       // Check authentication
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         router.push('/login');
         return;
@@ -59,12 +60,12 @@ export default function CreditCardsPage() {
   }, [router, supabase]);
 
   const handleDayChange = async (cardId: string, day: number) => {
-    const { error } = await supabase
-      .from('accounts')
-      .update({ payment_day_of_month: day })
-      .eq('id', cardId);
-
-    if (!error) {
+    const response = await fetch(`/api/accounts/${cardId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_day_of_month: day }),
+    });
+    if (response.ok) {
       setCreditCards(prev =>
         prev.map(card =>
           card.id === cardId ? { ...card, payment_day_of_month: day } : card
@@ -84,7 +85,7 @@ export default function CreditCardsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
-        <p className="font-body text-charcoal">Loading credit cards...</p>
+        <p className="font-body text-charcoal/60">Loading credit cards...</p>
       </div>
     );
   }
@@ -93,6 +94,12 @@ export default function CreditCardsPage() {
     return (
       <div className="min-h-screen bg-cream p-8">
         <div className="max-w-2xl mx-auto">
+          <Link href="/onboarding/accounts" className="inline-flex items-center font-body text-charcoal/70 hover:text-charcoal transition-colors mb-8">
+            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </Link>
           <h1 className="font-heading text-4xl text-charcoal mb-2">
             Credit Card Payments
           </h1>
@@ -115,6 +122,12 @@ export default function CreditCardsPage() {
   return (
     <div className="min-h-screen bg-cream p-8">
       <div className="max-w-2xl mx-auto">
+        <Link href="/onboarding/accounts" className="inline-flex items-center font-body text-charcoal/70 hover:text-charcoal transition-colors mb-8">
+          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </Link>
         <h1 className="font-heading text-4xl text-charcoal mb-2">
           Credit Card Payments
         </h1>
@@ -134,12 +147,12 @@ export default function CreditCardsPage() {
               <h3 className="font-body text-lg text-charcoal font-medium mb-4">
                 {card.name} {card.last_four ? `•••• ${card.last_four}` : ''}
               </h3>
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1">
                 {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                   <button
                     key={day}
                     onClick={() => handleDayChange(card.id, day)}
-                    className={`px-3 py-2 rounded font-body text-sm transition-colors ${
+                    className={`w-full px-1.5 py-1.5 rounded font-body text-xs transition-colors ${
                       card.payment_day_of_month === day
                         ? 'bg-terra text-white'
                         : 'bg-cream text-charcoal hover:bg-border-subtle'

@@ -4,11 +4,14 @@ import { createBrowserClient } from '@/lib/supabase';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+type Mode = 'signin' | 'signup' | 'forgot';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [mode, setMode] = useState<Mode>('signin');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createBrowserClient();
@@ -16,9 +19,22 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setLoading(true);
 
-    const { error } = isSignUp
+    if (mode === 'forgot') {
+      const redirectTo = `${window.location.origin}/auth/callback?next=/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      setLoading(false);
+      if (error) {
+        setError(error.message);
+      } else {
+        setInfo('Reset link sent — check your email.');
+      }
+      return;
+    }
+
+    const { error } = mode === 'signup'
       ? await supabase.auth.signUp({ email, password })
       : await supabase.auth.signInWithPassword({ email, password });
 
@@ -29,8 +45,8 @@ export default function LoginPage() {
       return;
     }
 
-    if (isSignUp) {
-      setError('Check your email to confirm your account.');
+    if (mode === 'signup') {
+      setInfo('Check your email to confirm your account.');
       return;
     }
 
@@ -41,51 +57,72 @@ export default function LoginPage() {
     router.refresh();
   };
 
+  const title = mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In';
+
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <h1 className="font-heading text-3xl text-charcoal text-center mb-8">
-          {isSignUp ? 'Create Account' : 'Sign In'}
-        </h1>
+        <h1 className="font-heading text-3xl text-charcoal text-center mb-8">{title}</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 border border-border-subtle rounded-lg bg-white font-body"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 border border-border-subtle rounded-lg bg-white font-body"
-            required
-            minLength={6}
-          />
+          <div>
+            <label htmlFor="email" className="block font-body text-sm text-charcoal/60 mb-1">Email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-border-subtle rounded-lg bg-white font-body"
+              required
+            />
+          </div>
 
-          {error && (
-            <p className="text-red-600 text-sm font-body">{error}</p>
+          {mode !== 'forgot' && (
+            <div>
+              <label htmlFor="password" className="block font-body text-sm text-charcoal/60 mb-1">Password</label>
+              <input
+                id="password"
+                type="password"
+                placeholder="••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border border-border-subtle rounded-lg bg-white font-body"
+                required
+                minLength={6}
+              />
+            </div>
           )}
+
+          {error && <p className="text-red-600 text-sm font-body">{error}</p>}
+          {info && <p className="text-green-700 text-sm font-body">{info}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-terra text-white py-3 rounded-lg font-body disabled:opacity-50"
+            className="w-full bg-terra text-white py-3 rounded-lg font-body disabled:opacity-50 active:scale-[0.98] transition-transform"
           >
-            {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            {loading ? 'Loading...' : mode === 'signup' ? 'Sign Up' : mode === 'forgot' ? 'Send Reset Link' : 'Sign In'}
           </button>
         </form>
 
-        <button
-          onClick={() => setIsSignUp(!isSignUp)}
-          className="w-full mt-4 text-charcoal font-body text-sm underline"
-        >
-          {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-        </button>
+        <div className="mt-4 flex flex-col items-center gap-2">
+          {mode === 'signin' && (
+            <>
+              <button onClick={() => { setMode('forgot'); setError(null); setInfo(null); }} className="text-charcoal font-body text-sm underline">
+                Forgot password?
+              </button>
+              <button onClick={() => { setMode('signup'); setError(null); setInfo(null); }} className="text-charcoal font-body text-sm underline">
+                Don&apos;t have an account? Sign up
+              </button>
+            </>
+          )}
+          {mode !== 'signin' && (
+            <button onClick={() => { setMode('signin'); setError(null); setInfo(null); }} className="text-charcoal font-body text-sm underline">
+              Back to sign in
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

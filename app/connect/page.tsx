@@ -144,7 +144,7 @@ export default function ConnectPage() {
               console.log('User exited');
             }}
           >
-            <span className="bg-terra text-white px-10 py-4 rounded-lg font-body text-lg font-medium inline-block cursor-pointer hover:opacity-90 transition-opacity shadow-lg">
+            <span className="bg-terra text-white px-10 py-4 rounded-lg font-body text-lg font-medium inline-block cursor-pointer hover:opacity-90 transition-opacity active:scale-[0.98] transition-transform shadow-lg">
               Connect Bank Account
             </span>
           </TellerConnect>
