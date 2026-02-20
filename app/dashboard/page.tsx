@@ -37,6 +37,7 @@ interface Account {
   is_primary_payment: boolean;
   payment_day_of_month: number | null;
   latest_balance: number;
+  last_synced: string | null;
 }
 
 interface RecurringRule {
@@ -60,6 +61,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeFrame, setTimeFrame] = useState<number>(15);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesModalError, setRulesModalError] = useState<string | null>(null);
   const [rulesFormData, setRulesFormData] = useState({
@@ -75,6 +77,29 @@ export default function DashboardPage() {
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetch('/api/accounts/refresh', { method: 'POST' });
+      await fetchAccounts();
+    } catch {
+      // fetchAccounts handles its own error state
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const formatTimeAgo = (isoString: string | null): string => {
+    if (!isoString) return '';
+    const diff = Date.now() - new Date(isoString).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   useEffect(() => {
@@ -291,6 +316,13 @@ export default function DashboardPage() {
           </h1>
           <div className="flex gap-3">
             <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {isRefreshing ? 'Syncing...' : 'Sync Balances'}
+            </button>
+            <button
               onClick={openRulesModal}
               className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
             >
@@ -498,6 +530,11 @@ export default function DashboardPage() {
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
+                      {account.last_synced && (
+                        <p className="font-body text-xs text-charcoal/40 mt-2">
+                          Synced {formatTimeAgo(account.last_synced)}
+                        </p>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -532,6 +569,11 @@ export default function DashboardPage() {
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
+                      {account.last_synced && (
+                        <p className="font-body text-xs text-charcoal/40 mt-2">
+                          Synced {formatTimeAgo(account.last_synced)}
+                        </p>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -561,6 +603,11 @@ export default function DashboardPage() {
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
+                      {account.last_synced && (
+                        <p className="font-body text-xs text-charcoal/40 mt-2">
+                          Synced {formatTimeAgo(account.last_synced)}
+                        </p>
+                      )}
                     </motion.div>
                   ))}
                 </div>

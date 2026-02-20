@@ -12,6 +12,7 @@ export default function ConnectPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [accountCount, setAccountCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   // Check authentication and fetch account count
   useEffect(() => {
@@ -44,8 +45,8 @@ export default function ConnectPage() {
   }, [router, supabase]);
 
   const handleSuccess = async (authorization: any) => {
+    setConnectError(null);
     try {
-      // Send to API to store enrollment + fetch accounts
       const response = await fetch('/api/teller/callback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,12 +62,11 @@ export default function ConnectPage() {
       if (!data.success) {
         throw new Error('Failed to connect account');
       }
-      
+
       router.push('/onboarding/accounts');
     } catch (error) {
       console.error('Error connecting account:', error);
-      alert(`Failed to connect account: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      // Don't redirect on error - let user try again
+      setConnectError(error instanceof Error ? error.message : 'Failed to connect account. Please try again.');
     }
   };
 
@@ -119,6 +119,7 @@ export default function ConnectPage() {
             onSuccess={handleSuccess}
             onError={(error) => {
               console.error('TellerConnect error:', error);
+              setConnectError('Bank connection failed. Please try again.');
             }}
             onExit={() => {
               console.log('User exited');
@@ -129,7 +130,13 @@ export default function ConnectPage() {
             </span>
           </TellerConnect>
         </div>
-        
+
+        {connectError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 font-body text-sm max-w-md mx-auto">
+            {connectError}
+          </div>
+        )}
+
         <p className="font-body text-sm text-charcoal/60 max-w-md mx-auto">
           Can't find your bank? You can also connect using routing and account numbers through the verification flow.
         </p>

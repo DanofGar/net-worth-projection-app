@@ -20,12 +20,12 @@ export async function GET() {
     return NextResponse.json({ error: accountsError.message }, { status: 500 });
   }
 
-  // Fetch latest balance for each account
+  // Fetch latest balance and sync time for each account
   const accountsWithBalances = await Promise.all(
     (accounts || []).map(async (account) => {
-      const { data: balanceData, error: balanceError } = await supabase
+      const { data: balanceData } = await supabase
         .from('balances')
-        .select('ledger')
+        .select('ledger, polled_at')
         .eq('account_id', account.id)
         .order('polled_at', { ascending: false })
         .limit(1)
@@ -34,6 +34,7 @@ export async function GET() {
       return {
         ...account,
         latest_balance: balanceData?.ledger ? parseFloat(balanceData.ledger.toString()) : 0,
+        last_synced: balanceData?.polled_at ?? null,
       };
     })
   );

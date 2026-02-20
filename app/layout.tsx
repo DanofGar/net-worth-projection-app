@@ -15,6 +15,13 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Net Worth Projection",
   description: "60-day financial projections dashboard",
+  manifest: "/manifest.json",
+  themeColor: "#D97757",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FinTrack",
+  },
 };
 
 export default function RootLayout({

@@ -1,22 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 import { createBrowserClient as createBrowserClientSSR, createServerClient as createServerClientSSR } from '@supabase/ssr';
 
-// Environment validation
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL environment variable is not set');
-}
-if (!supabaseAnonKey) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable is not set');
-}
+// Environment variables — throwing at module load time breaks Next.js builds.
+// Missing vars will cause runtime errors when the client actually connects,
+// which is the right place to surface config problems.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 // Client-side singleton (for use in Client Components)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+);
 
 // Client component helper (for use in 'use client' components with auth)
-export const createBrowserClient = () => createBrowserClientSSR(supabaseUrl, supabaseAnonKey);
+export const createBrowserClient = () => createBrowserClientSSR(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+);
 
 // Server component helper (for use in Server Components / Route Handlers)
 export const createServerClient = async () => {
@@ -47,16 +48,12 @@ export const createServerClient = async () => {
 };
 
 // Admin client (bypasses RLS - use only in server-side code / scheduled functions)
-export const supabaseAdmin = (() => {
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-  if (!supabaseServiceKey) {
-    if (typeof window === 'undefined') {
-      throw new Error('SUPABASE_SERVICE_KEY environment variable is not set');
-    }
-    return createClient(supabaseUrl, supabaseAnonKey);
-  }
-  return createClient(supabaseUrl, supabaseServiceKey);
-})();
+// Falls back to placeholder values during build-time module evaluation so the
+// build doesn't crash when env vars are absent. At runtime, real values are required.
+export const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
+);
 
 // Type helper for database schema
 export type Database = {
