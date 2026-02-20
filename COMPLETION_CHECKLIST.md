@@ -50,7 +50,7 @@ Track progress across Ralph loop iterations. Update this file after each task.
 
 ## Phase 5: Polish
 
-- [ ] **T10** — **Skeleton loading states** for dashboard:
+- [x] **T10** — **Skeleton loading states** for dashboard:
   - Replace "Loading projection..." text in chart area with a skeleton rectangle (animated pulse)
   - Replace account card loading state with skeleton card outlines
   - Use pure Tailwind `animate-pulse` — no extra libraries

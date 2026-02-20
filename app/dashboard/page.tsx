@@ -502,8 +502,9 @@ export default function DashboardPage() {
         {/* Projection Chart */}
         <div className="bg-white border border-border-subtle rounded-lg p-6 mb-8 shadow-sm">
           {loading ? (
-            <div className="h-96 flex items-center justify-center">
-              <p className="font-body text-charcoal/60">Loading projection...</p>
+            <div className="h-96 animate-pulse">
+              <div className="h-4 bg-charcoal/8 rounded w-40 mb-6" />
+              <div className="h-80 bg-charcoal/5 rounded-lg" />
             </div>
           ) : error ? (
             <div className="h-96 flex items-center justify-center">
@@ -560,6 +561,20 @@ export default function DashboardPage() {
         </div>
 
         {/* Accounts Summary */}
+        {loading && accounts.length === 0 && (
+          <div className="space-y-6">
+            <div className="h-7 bg-charcoal/8 rounded w-48 animate-pulse" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm animate-pulse">
+                  <div className="h-5 bg-charcoal/8 rounded w-3/4 mb-3" />
+                  <div className="h-4 bg-charcoal/6 rounded w-1/2 mb-6" />
+                  <div className="h-7 bg-charcoal/8 rounded w-2/3" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {accounts.length > 0 && (
           <div className="space-y-6">
             {/* Checking/Savings */}
