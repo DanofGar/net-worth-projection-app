@@ -1,9 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
 import { createBrowserClient as createBrowserClientSSR, createServerClient as createServerClientSSR } from '@supabase/ssr';
 
-// Environment variables — throwing at module load time breaks Next.js builds.
-// Missing vars will cause runtime errors when the client actually connects,
-// which is the right place to surface config problems.
+// Dev-only startup validation — only runs with `next dev`, never at build time.
+if (process.env.NODE_ENV === 'development') {
+  const clientVars = [
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'NEXT_PUBLIC_TELLER_APP_ID',
+    'NEXT_PUBLIC_TELLER_ENV',
+  ];
+  const serverVars = [
+    'SUPABASE_SERVICE_KEY',
+    'TELLER_CERT_B64',
+    'TELLER_KEY_B64',
+  ];
+  const toCheck = typeof window === 'undefined'
+    ? [...clientVars, ...serverVars]
+    : clientVars;
+  const missing = toCheck.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    const side = typeof window === 'undefined' ? 'server' : 'client';
+    throw new Error(
+      `[DEV] Missing required environment variables (${side}):\n` +
+      missing.map((k) => `  - ${k}`).join('\n') +
+      '\n\nAdd these to your .env.local file before running the dev server.'
+    );
+  }
+}
+
+// Environment variables — placeholder fallbacks keep the build from crashing
+// when env vars are absent. At runtime the real values are required.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 

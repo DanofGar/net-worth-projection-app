@@ -66,7 +66,7 @@ Track progress across Ralph loop iterations. Update this file after each task.
 
 ## Phase 6: Production Readiness
 
-- [ ] **T13** — **ENV template validation**: add a startup check (in `lib/supabase.ts`) that throws a clear dev-mode error if required env vars are missing, with a list of which ones
+- [x] **T13** — **ENV template validation**: add a startup check (in `lib/supabase.ts`) that throws a clear dev-mode error if required env vars are missing, with a list of which ones
 - [ ] **T14** — **Netlify deployment validation**: add a `netlify.toml` `[build]` section with `command = "npm run build"` and `publish = ".next"`, verify scheduled function cron syntax matches Netlify format
 - [ ] **T15** — **Update README** with correct deployment steps, env var table, and actual Supabase migration order
 
