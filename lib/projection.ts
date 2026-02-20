@@ -242,8 +242,12 @@ function ruleAppliesToDate(rule: RecurringRule, date: Date): boolean {
       return daysDiff % 7 === 0;
     case 'biweekly':
       return daysDiff % 14 === 0;
-    case 'monthly':
-      return getDate(date) === getDate(anchor);
+    case 'monthly': {
+      const anchorDay = getDate(anchor);
+      const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      const effectiveDay = Math.min(anchorDay, daysInMonth);
+      return getDate(date) === effectiveDay;
+    }
     default:
       return false;
   }
