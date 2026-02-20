@@ -81,10 +81,9 @@ export default function ConnectPage() {
 
   // Determine back link and messaging based on auth state
   const backLink = isAuthenticated ? '/dashboard' : '/landing';
-  const heading = accountCount === 0 
-    ? 'Connect your first account'
-    : 'Connect another account';
-  const description = accountCount === 0
+  const isNewUser = accountCount === 0;
+  const heading = isNewUser ? 'Connect your first account' : 'Connect another account';
+  const description = isNewUser
     ? 'Securely link your bank account to start tracking your financial projections.'
     : 'Add another bank account to get a complete view of your finances.';
 
@@ -103,6 +102,26 @@ export default function ConnectPage() {
             {isAuthenticated ? 'Back to dashboard' : 'Back to home'}
           </Link>
         </div>
+
+        {/* Step indicator — only for new users */}
+        {isNewUser && (
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-terra text-white text-sm font-body flex items-center justify-center font-semibold">1</div>
+              <span className="font-body text-sm text-charcoal font-medium">Connect</span>
+            </div>
+            <div className="w-8 h-px bg-border-subtle" />
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full border border-border-subtle text-charcoal/40 text-sm font-body flex items-center justify-center">2</div>
+              <span className="font-body text-sm text-charcoal/40">Configure</span>
+            </div>
+            <div className="w-8 h-px bg-border-subtle" />
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full border border-border-subtle text-charcoal/40 text-sm font-body flex items-center justify-center">3</div>
+              <span className="font-body text-sm text-charcoal/40">Project</span>
+            </div>
+          </div>
+        )}
 
         <h1 className="font-heading text-4xl md:text-5xl text-charcoal mb-4">
           {heading}

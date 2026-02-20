@@ -312,19 +312,52 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <div className="bg-white border border-border-subtle rounded-lg p-12 text-center">
-            <h2 className="font-heading text-2xl text-charcoal mb-4">
-              Connect Your First Account
+          <div className="bg-white border border-border-subtle rounded-lg p-12">
+            <h2 className="font-heading text-2xl text-charcoal mb-2 text-center">
+              Get started in 3 steps
             </h2>
-            <p className="font-body text-charcoal/60 mb-8">
-              Get started by connecting your bank account to see 60-day financial projections.
+            <p className="font-body text-charcoal/60 mb-10 text-center">
+              Connect your bank, set your rules, see your future.
             </p>
-            <a
-              href="/connect"
-              className="inline-block bg-terra text-white px-8 py-3 rounded-lg font-body hover:opacity-90 transition-opacity"
-            >
-              Connect Account
-            </a>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-full bg-terra text-white font-heading text-xl flex items-center justify-center mx-auto mb-4">
+                  1
+                </div>
+                <h3 className="font-body font-semibold text-charcoal mb-2">Connect</h3>
+                <p className="font-body text-sm text-charcoal/60">
+                  Link your bank accounts securely through Teller.
+                </p>
+              </div>
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-full border-2 border-border-subtle text-charcoal/30 font-heading text-xl flex items-center justify-center mx-auto mb-4">
+                  2
+                </div>
+                <h3 className="font-body font-semibold text-charcoal/40 mb-2">Configure</h3>
+                <p className="font-body text-sm text-charcoal/40">
+                  Add recurring income and expenses to improve accuracy.
+                </p>
+              </div>
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-full border-2 border-border-subtle text-charcoal/30 font-heading text-xl flex items-center justify-center mx-auto mb-4">
+                  3
+                </div>
+                <h3 className="font-body font-semibold text-charcoal/40 mb-2">Project</h3>
+                <p className="font-body text-sm text-charcoal/40">
+                  View 60-day projections for net worth and cash flow.
+                </p>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <a
+                href="/connect"
+                className="inline-block bg-terra text-white px-10 py-3 rounded-lg font-body hover:opacity-90 transition-opacity"
+              >
+                Connect Your Bank
+              </a>
+            </div>
           </div>
         </div>
       </div>

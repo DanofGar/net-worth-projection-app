@@ -36,7 +36,7 @@ Track progress across Ralph loop iterations. Update this file after each task.
 
 ## Phase 3: First-Time User Flow
 
-- [ ] **T8** — Improve **new user onboarding flow**:
+- [x] **T8** — Improve **new user onboarding flow**:
   - After successful signup (in `app/login/page.tsx`), redirect to `/connect` instead of `/dashboard`
   - Show clear "Step 1 of 3: Connect Your Bank" progress indicator on `/connect` page for new users (account count === 0)
   - `app/dashboard/page.tsx` empty state: replace plain button with a guided 3-step visual (Connect → Configure → Profit)

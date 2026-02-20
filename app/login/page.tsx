@@ -34,7 +34,10 @@ export default function LoginPage() {
       return;
     }
 
-    router.push('/dashboard');
+    // New users go straight to connect; returning users go to dashboard
+    const accountsRes = await fetch('/api/accounts');
+    const accountsData = accountsRes.ok ? await accountsRes.json() : [];
+    router.push(accountsData.length === 0 ? '/connect' : '/dashboard');
     router.refresh();
   };
 
