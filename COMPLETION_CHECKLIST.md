@@ -10,7 +10,7 @@ Track progress across Ralph loop iterations. Update this file after each task.
 
 ## Phase 1: Infrastructure & Dev Experience
 
-- [ ] **T1** — Fix Next.js 16 middleware deprecation: rename `middleware.ts` → `proxy.ts` (or suppress if just a cosmetic warning per Next.js docs). Verify build still works.
+- [x] **T1** — Fix Next.js 16 middleware deprecation: rename `middleware.ts` → `proxy.ts` (or suppress if just a cosmetic warning per Next.js docs). Verify build still works.
 - [x] **T2** — Create `supabase/migrations/004_assign_mock_data.sql` — assigns mock enrollment to first user so devs can test without connecting a real bank.
 - [x] **T3** — Fixed `lib/supabase.ts`: removed module-level throws, use placeholder URL so Supabase client doesn't crash at build time when env vars are absent. Build now passes without `.env.local`.
 
