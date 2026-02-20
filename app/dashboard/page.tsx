@@ -298,15 +298,15 @@ export default function DashboardPage() {
   // Empty state
   if (!loading && accounts.length === 0) {
     return (
-      <div className="min-h-screen bg-cream p-8">
+      <div className="min-h-screen bg-cream p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="font-heading text-5xl text-charcoal">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+            <h1 className="font-heading text-3xl md:text-5xl text-charcoal">
               Financial Projections
             </h1>
             <button
               onClick={handleSignOut}
-              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+              className="self-start md:self-auto bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
             >
               Sign Out
             </button>
@@ -365,36 +365,36 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-cream p-8">
+    <div className="min-h-screen bg-cream p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="font-heading text-5xl text-charcoal">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+          <h1 className="font-heading text-3xl md:text-5xl text-charcoal">
             Financial Projections
           </h1>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {isRefreshing ? 'Syncing...' : 'Sync Balances'}
             </button>
             <button
               onClick={openRulesModal}
-              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity"
             >
               Manage Rules
             </button>
             <a
               href="/connect"
-              className="bg-terra text-white px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+              className="bg-terra text-white px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity"
             >
               + Add Account
             </a>
             <button
               onClick={handleSignOut}
-              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity"
             >
               Sign Out
             </button>
@@ -403,7 +403,7 @@ export default function DashboardPage() {
 
         {/* View Toggle */}
         <div className="mb-8 space-y-4">
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setViewMode('net_worth')}
               className={`px-6 py-2 rounded-full font-body transition-colors ${
@@ -427,7 +427,7 @@ export default function DashboardPage() {
           </div>
 
           {viewMode === 'net_worth' && (
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => setScope('total')}
                 className={`px-6 py-2 rounded-full font-body transition-colors ${
@@ -500,7 +500,7 @@ export default function DashboardPage() {
         )}
 
         {/* Projection Chart */}
-        <div className="bg-white border border-border-subtle rounded-lg p-6 mb-8 shadow-sm">
+        <div className="bg-white border border-border-subtle rounded-lg p-4 md:p-6 mb-8 shadow-sm">
           {loading ? (
             <div className="h-96 animate-pulse">
               <div className="h-4 bg-charcoal/8 rounded w-40 mb-6" />

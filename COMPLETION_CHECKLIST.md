@@ -55,7 +55,7 @@ Track progress across Ralph loop iterations. Update this file after each task.
   - Replace account card loading state with skeleton card outlines
   - Use pure Tailwind `animate-pulse` — no extra libraries
 
-- [ ] **T11** — **Mobile responsiveness audit**:
+- [x] **T11** — **Mobile responsiveness audit**:
   - Dashboard header (too many buttons on mobile) — collapse to a hamburger menu or stack buttons
   - Chart: verify ResponsiveContainer works on 375px width
   - Account cards grid: already uses responsive grid, but verify padding/font sizes on mobile
