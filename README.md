@@ -15,44 +15,47 @@ A single-user PWA for 60-day financial projections. Connects to banks via Teller
 - **Bank Integration**: Connect accounts via Teller.io with mTLS authentication
 - **Automated Polling**: Scheduled balance updates 3x daily (6am, 12pm, 6pm ET)
 - **Projection Modes**:
-  - Net Worth: Total or Liquid (excludes retirement accounts)
-  - Cash Flow: Primary payment account with credit card autopay deductions
+  - Net Worth: Total or Liquid (excludes retirement accounts), 15/30/60 day window
+  - Cash Flow: Primary payment account with credit card autopay deductions, 30/45 day window
 - **Onboarding Flow**: Capture credit card due dates and primary payment account
+- **PWA**: Installable, with web app manifest and icons
 - **Design System**: Warm cream background, charcoal text, terra-cotta accents, Newsreader serif headings, DM Sans body
 
 ## Setup
 
 ### 1. Environment Variables
 
-Create a `.env.local` file in the root directory:
+Create a `.env.local` file in the project root. All variables are required.
 
-```env
-# Teller API Configuration
-TELLER_CERT_B64=<base64 encoded certificate.pem>
-TELLER_KEY_B64=<base64 encoded private_key.key>
-TELLER_APP_ID=<from Teller dashboard>
-TELLER_ENV=sandbox  # or 'production'
-NEXT_PUBLIC_TELLER_APP_ID=<from Teller dashboard>
-NEXT_PUBLIC_TELLER_ENV=sandbox  # or 'production'
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous (public) key |
+| `SUPABASE_SERVICE_KEY` | Supabase service role key — bypasses RLS, server-side only |
+| `NEXT_PUBLIC_TELLER_APP_ID` | Your Teller application ID from the Teller dashboard |
+| `NEXT_PUBLIC_TELLER_ENV` | Teller environment: `sandbox` or `development` |
+| `TELLER_CERT_B64` | Base64-encoded Teller mTLS certificate (`certificate.pem`) |
+| `TELLER_KEY_B64` | Base64-encoded Teller mTLS private key (`private_key.key`) |
 
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=<supabase url>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase anon key>
-SUPABASE_SERVICE_KEY=<supabase service role key>
-```
+To encode Teller certificates to base64:
 
-To encode certificates to base64:
 ```bash
-# Certificate
-cat certificate.pem | base64 | tr -d '\n' > cert_b64.txt
-
-# Private key
-cat private_key.key | base64 | tr -d '\n' > key_b64.txt
+cat certificate.pem | base64 | tr -d '\n'   # paste as TELLER_CERT_B64
+cat private_key.key | base64 | tr -d '\n'   # paste as TELLER_KEY_B64
 ```
 
 ### 2. Supabase Setup
 
-Run the migration in `supabase/migrations/001_initial_schema.sql` in your Supabase dashboard SQL editor.
+Run the migrations **in order** in your Supabase SQL editor (Dashboard → SQL Editor):
+
+| Order | File | Purpose |
+|---|---|---|
+| 1 | `supabase/migrations/001_initial_schema.sql` | Creates all tables and indexes |
+| 2 | `supabase/migrations/002_mock_data.sql` | *(Optional)* Inserts 8 test accounts |
+| 3 | `supabase/migrations/003_auth_and_rls.sql` | Adds auth columns and RLS policies |
+| 4 | `supabase/migrations/004_assign_mock_data.sql` | *(Optional)* Assigns mock data to first signed-in user |
+
+Migrations 2 and 4 are only needed for local testing without a real bank connection. Run migration 4 **after** creating your first user account.
 
 ### 3. Install Dependencies
 
@@ -68,72 +71,79 @@ npm run dev
 
 Visit [http://localhost:3000](http://localhost:3000)
 
-### 5. Testing Teller Connection
+The dev server validates all required env vars on startup and throws a clear error listing any that are missing.
 
-Before proceeding, test the Teller mTLS connection:
-- Visit `/api/teller/test` to verify the connection works
-- This uses a sandbox test token from Teller docs
+### 5. Testing the Teller Connection
+
+Visit `/api/teller/test` to verify the mTLS connection to Teller's API works before connecting a real account.
 
 ## Project Structure
 
 ```
-finance-dashboard/
+net-worth-projection-app/
 ├── app/
-│   ├── api/
-│   │   ├── projection/        # Projection data API
-│   │   └── teller/             # Teller integration endpoints
-│   ├── connect/                # Teller Connect page
-│   ├── onboarding/             # Onboarding flow
-│   │   ├── accounts/           # Account discovery
-│   │   ├── credit-cards/       # CC due date setup
-│   │   └── primary/            # Primary payment account selection
-│   └── page.tsx                # Main dashboard
+│   ├── page.tsx                      — Root redirect (auth → /dashboard, else → /landing)
+│   ├── landing/page.tsx              — Public landing page
+│   ├── login/page.tsx                — Login / signup
+│   ├── connect/page.tsx              — Teller Connect (auth-protected)
+│   ├── dashboard/page.tsx            — Main dashboard: chart, accounts, rules modal
+│   ├── rules/page.tsx                — Full rules CRUD page
+│   ├── onboarding/
+│   │   ├── accounts/page.tsx         — Post-connect account review
+│   │   ├── credit-cards/page.tsx     — CC due date entry
+│   │   └── primary/page.tsx          — Primary payment account selection
+│   └── api/
+│       ├── accounts/route.ts         — GET accounts with latest balances
+│       ├── accounts/[id]/route.ts    — DELETE account (cascades balances)
+│       ├── accounts/refresh/route.ts — POST: poll Teller and store new balances
+│       ├── projection/route.ts       — GET 60-day projection
+│       ├── rules/route.ts            — GET + POST recurring rules
+│       ├── rules/[id]/route.ts       — PATCH + DELETE rules
+│       ├── teller/callback/route.ts  — Teller Connect callback (stores enrollment)
+│       └── teller/test/route.ts      — mTLS connection test
 ├── lib/
-│   ├── projection.ts           # Projection engine
-│   ├── supabase.ts             # Supabase clients
-│   └── teller.ts               # Teller API utilities
-├── netlify/
-│   └── functions/
-│       └── scheduled-poll.ts   # Scheduled balance polling
-└── supabase/
-    └── migrations/
-        └── 001_initial_schema.sql
+│   ├── supabase.ts                   — Supabase client factories + env validation
+│   ├── projection.ts                 — 60-day projection engine
+│   ├── teller.ts                     — Teller API utilities
+│   └── validations.ts                — Zod schemas
+├── middleware.ts                     — Route protection
+├── netlify.toml                      — Netlify build config
+├── netlify/functions/
+│   └── scheduled-poll.ts             — Polls Teller 3x daily via Netlify scheduled function
+└── supabase/migrations/
+    ├── 001_initial_schema.sql
+    ├── 002_mock_data.sql
+    ├── 003_auth_and_rls.sql
+    └── 004_assign_mock_data.sql
 ```
 
-## Deployment
+## Deployment (Netlify)
 
-### Netlify
-
-1. Connect your repository to Netlify
-2. Set environment variables in Netlify dashboard
-3. Deploy - the scheduled function will run automatically at 6am, 12pm, and 6pm ET
+1. **Connect repository** to Netlify (New site → Import from Git)
+2. **Build settings** are defined in `netlify.toml`:
+   - Build command: `npm run build`
+   - Publish directory: `.next`
+3. **Set environment variables** in Netlify → Site configuration → Environment variables. Add all seven variables from the table above.
+4. **Deploy** — Netlify runs the build and activates the `@netlify/plugin-nextjs` adapter automatically.
+5. **Scheduled polling** — the `netlify/functions/scheduled-poll.ts` function runs at 6am, 12pm, and 6pm ET (cron: `0 11,17,23 * * *`) using Netlify's scheduled functions feature. No additional configuration needed.
 
 ## Usage Flow
 
-1. **Landing Page**: Visit `/` to see the app introduction and value proposition
-2. **Connect Bank**: Click "Get Started" to link your bank account via Teller
-3. **Onboarding**: 
+1. **Sign up / Sign in** at `/login` — new users are redirected to `/connect` automatically
+2. **Connect Bank** — link your bank account via Teller Connect
+3. **Onboarding**:
    - Review discovered accounts
    - Set credit card payment due dates
    - Select primary payment account
-4. **Dashboard**: View 60-day projections with Net Worth or Cash Flow modes
-
-## Mock Data for Testing
-
-To test the app without connecting real bank accounts, run the mock data migration:
-
-1. Open your Supabase SQL editor
-2. Run `supabase/migrations/002_mock_data.sql`
-3. This creates 8 test accounts (2 retirement, 3 credit cards, 3 checking/savings) with realistic balances
-4. The dashboard will automatically display these accounts
+4. **Dashboard** — view 60-day projections in Net Worth or Cash Flow mode
 
 ## Technologies
 
-- **Next.js 16** - React framework
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Styling
-- **Supabase** - PostgreSQL database
-- **Teller.io** - Bank data API
-- **Recharts** - Data visualization
-- **Framer Motion** - Animations
-- **Netlify Functions** - Scheduled polling
+- **Next.js 16** — React framework
+- **TypeScript** — Type safety
+- **Tailwind CSS v4** — Styling
+- **Supabase** — PostgreSQL database with RLS
+- **Teller.io** — Bank data API (mTLS)
+- **Recharts** — Data visualization
+- **Framer Motion** — Animations
+- **Netlify Functions** — Scheduled balance polling
