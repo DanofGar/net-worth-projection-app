@@ -60,7 +60,7 @@ Track progress across Ralph loop iterations. Update this file after each task.
   - Chart: verify ResponsiveContainer works on 375px width
   - Account cards grid: already uses responsive grid, but verify padding/font sizes on mobile
 
-- [ ] **T12** — **Time frame controls for Net Worth** mode (currently only Cash Flow has 30/45 day options):
+- [x] **T12** — **Time frame controls for Net Worth** mode (currently only Cash Flow has 30/45 day options):
   - Add 15/30/60 day selector for Net Worth mode as well
   - Currently timeFrame state only affects cash_flow display — wire it to net_worth too
 

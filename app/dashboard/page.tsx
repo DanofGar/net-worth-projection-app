@@ -405,7 +405,7 @@ export default function DashboardPage() {
         <div className="mb-8 space-y-4">
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => setViewMode('net_worth')}
+              onClick={() => { setViewMode('net_worth'); setTimeFrame(15); }}
               className={`px-6 py-2 rounded-full font-body transition-colors ${
                 viewMode === 'net_worth'
                   ? 'bg-terra text-white'
@@ -415,7 +415,7 @@ export default function DashboardPage() {
               Net Worth
             </button>
             <button
-              onClick={() => setViewMode('cash_flow')}
+              onClick={() => { setViewMode('cash_flow'); setTimeFrame(30); }}
               className={`px-6 py-2 rounded-full font-body transition-colors ${
                 viewMode === 'cash_flow'
                   ? 'bg-terra text-white'
@@ -471,28 +471,38 @@ export default function DashboardPage() {
                   {formatCurrency(currentValue)}
                 </p>
               </div>
+              {viewMode === 'net_worth' && (
+                <div className="flex flex-col gap-2 ml-4">
+                  {[15, 30, 60].map((days) => (
+                    <button
+                      key={days}
+                      onClick={() => setTimeFrame(days)}
+                      className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
+                        timeFrame === days
+                          ? 'bg-terra text-white'
+                          : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
+                      }`}
+                    >
+                      {days} days
+                    </button>
+                  ))}
+                </div>
+              )}
               {viewMode === 'cash_flow' && (
                 <div className="flex flex-col gap-2 ml-4">
-                  <button
-                    onClick={() => setTimeFrame(30)}
-                    className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
-                      timeFrame === 30
-                        ? 'bg-terra text-white'
-                        : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
-                    }`}
-                  >
-                    30 days
-                  </button>
-                  <button
-                    onClick={() => setTimeFrame(45)}
-                    className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
-                      timeFrame === 45
-                        ? 'bg-terra text-white'
-                        : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
-                    }`}
-                  >
-                    45 days
-                  </button>
+                  {[30, 45].map((days) => (
+                    <button
+                      key={days}
+                      onClick={() => setTimeFrame(days)}
+                      className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
+                        timeFrame === days
+                          ? 'bg-terra text-white'
+                          : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
+                      }`}
+                    >
+                      {days} days
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
