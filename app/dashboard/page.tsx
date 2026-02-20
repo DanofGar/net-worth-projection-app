@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@/lib/supabase';
@@ -49,6 +49,102 @@ interface RecurringRule {
   end_date: string | null;
   active: boolean;
   created_at: string;
+}
+
+// Delete icon SVG shared across account cards
+function TrashIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+}
+
+interface AccountCardProps {
+  account: Account;
+  index: number;
+  confirmDeleteId: string | null;
+  deleteError: string | null;
+  onDeleteRequest: (id: string) => void;
+  onDeleteConfirm: (id: string) => void;
+  onDeleteCancel: () => void;
+  formatCurrency: (value: number) => string;
+  formatTimeAgo: (isoString: string | null) => string;
+}
+
+function AccountCard({
+  account,
+  index,
+  confirmDeleteId,
+  deleteError,
+  onDeleteRequest,
+  onDeleteConfirm,
+  onDeleteCancel,
+  formatCurrency,
+  formatTimeAgo,
+}: AccountCardProps) {
+  return (
+    <motion.div
+      key={account.id}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm relative"
+    >
+      <button
+        onClick={() => onDeleteRequest(account.id)}
+        className="absolute top-4 right-4 text-charcoal/25 hover:text-red-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
+        aria-label="Delete account"
+      >
+        <TrashIcon />
+      </button>
+      <h3 className="font-body text-lg text-charcoal font-medium mb-2 pr-6 truncate">
+        {account.name}
+      </h3>
+      <p className="font-body text-sm text-charcoal/60 mb-2">
+        {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
+        {account.is_primary_payment && (
+          <span className="ml-2 text-terra">(Primary)</span>
+        )}
+      </p>
+      {account.payment_day_of_month && (
+        <p className="font-body text-sm text-charcoal/60 mb-2">
+          Payment due day: {account.payment_day_of_month}
+        </p>
+      )}
+      <p className="font-body text-2xl text-charcoal font-semibold mt-2">
+        {formatCurrency(account.latest_balance)}
+      </p>
+      {account.last_synced && (
+        <p className="font-body text-xs text-charcoal/40 mt-2">
+          Synced {formatTimeAgo(account.last_synced)}
+        </p>
+      )}
+      {confirmDeleteId === account.id && (
+        <div className="mt-4 pt-4 border-t border-border-subtle">
+          <p className="font-body text-sm text-charcoal mb-2">Remove this account?</p>
+          {deleteError && (
+            <p className="font-body text-xs text-red-600 mb-2">{deleteError}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={onDeleteCancel}
+              className="flex-1 px-3 py-1.5 border border-border-subtle rounded font-body text-sm text-charcoal hover:bg-cream transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onDeleteConfirm(account.id)}
+              className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-body text-sm hover:bg-red-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
 }
 
 export default function DashboardPage() {
@@ -127,6 +223,8 @@ export default function DashboardPage() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
+  // Bug 2 fix: fetchAccounts no longer calls fetchProjection internally.
+  // The second useEffect handles projection fetching exclusively.
   useEffect(() => {
     fetchAccounts();
   }, []);
@@ -180,10 +278,9 @@ export default function DashboardPage() {
       const data: Account[] = await response.json();
       setAccounts(data);
 
-      // Fetch projection after accounts are loaded
-      if (data.length > 0) {
-        await fetchProjection();
-      } else {
+      // Bug 2 fix: do NOT call fetchProjection() here.
+      // The useEffect watching accounts.length will handle it.
+      if (data.length === 0) {
         setLoading(false);
       }
     } catch (err) {
@@ -280,20 +377,30 @@ export default function DashboardPage() {
     }
   }
 
-  // Calculate current value based on view mode
-  const currentValue = projection?.points[projection.points.length - 1]?.value ?? 0;
-  const currentValueLabel = viewMode === 'net_worth' 
-    ? (scope === 'total' ? 'Total Net Worth' : 'Liquid Net Worth')
+  // Bug 1 & 7 fix: use startingValue (actual current balance) not the last projection point
+  const currentValue = projection?.startingValue ?? 0;
+  const currentValueLabel = viewMode === 'net_worth'
+    ? (scope === 'total' ? 'Current Net Worth' : 'Current Liquid Net Worth')
     : 'Primary Account Balance';
 
   // Group accounts by type
-  const checkingSavings = accounts.filter(acc => 
+  const checkingSavings = accounts.filter(acc =>
     acc.type === 'depository' && ['checking', 'savings'].includes(acc.subtype)
   );
   const creditCards = accounts.filter(acc => acc.type === 'credit');
-  const retirement = accounts.filter(acc => 
+  const retirement = accounts.filter(acc =>
     acc.type === 'depository' && !acc.is_liquid
   );
+
+  const accountCardProps = {
+    confirmDeleteId,
+    deleteError,
+    onDeleteRequest: (id: string) => { setConfirmDeleteId(id); setDeleteError(null); },
+    onDeleteConfirm: handleDeleteAccount,
+    onDeleteCancel: () => { setConfirmDeleteId(null); setDeleteError(null); },
+    formatCurrency,
+    formatTimeAgo,
+  };
 
   // Empty state
   if (!loading && accounts.length === 0) {
@@ -306,7 +413,7 @@ export default function DashboardPage() {
             </h1>
             <button
               onClick={handleSignOut}
-              className="self-start md:self-auto bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+              className="self-start md:self-auto bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
             >
               Sign Out
             </button>
@@ -353,7 +460,7 @@ export default function DashboardPage() {
             <div className="text-center">
               <a
                 href="/connect"
-                className="inline-block bg-terra text-white px-10 py-3 rounded-lg font-body hover:opacity-90 transition-opacity"
+                className="inline-block bg-terra text-white px-10 py-3 rounded-lg font-body hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
               >
                 Connect Your Bank
               </a>
@@ -376,25 +483,32 @@ export default function DashboardPage() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
             >
               {isRefreshing ? 'Syncing...' : 'Sync Balances'}
             </button>
-            <button
-              onClick={openRulesModal}
-              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity"
+            {/* Bug 3 fix: "Manage Rules" replaced with Link to /rules; separate "+ Add Rule" opens quick-add modal */}
+            <Link
+              href="/rules"
+              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
             >
               Manage Rules
+            </Link>
+            <button
+              onClick={openRulesModal}
+              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
+            >
+              + Add Rule
             </button>
             <a
               href="/connect"
-              className="bg-terra text-white px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity"
+              className="bg-terra text-white px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
             >
               + Add Account
             </a>
             <button
               onClick={handleSignOut}
-              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity"
+              className="bg-white text-charcoal border border-border-subtle px-4 py-2 rounded-lg font-body text-sm hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
             >
               Sign Out
             </button>
@@ -406,7 +520,7 @@ export default function DashboardPage() {
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => { setViewMode('net_worth'); setTimeFrame(15); }}
-              className={`px-6 py-2 rounded-full font-body transition-colors ${
+              className={`px-6 py-2 rounded-full font-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1 ${
                 viewMode === 'net_worth'
                   ? 'bg-terra text-white'
                   : 'bg-white text-charcoal border border-border-subtle'
@@ -416,7 +530,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => { setViewMode('cash_flow'); setTimeFrame(30); }}
-              className={`px-6 py-2 rounded-full font-body transition-colors ${
+              className={`px-6 py-2 rounded-full font-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1 ${
                 viewMode === 'cash_flow'
                   ? 'bg-terra text-white'
                   : 'bg-white text-charcoal border border-border-subtle'
@@ -430,7 +544,7 @@ export default function DashboardPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => setScope('total')}
-                className={`px-6 py-2 rounded-full font-body transition-colors ${
+                className={`px-6 py-2 rounded-full font-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1 ${
                   scope === 'total'
                     ? 'bg-terra text-white'
                     : 'bg-white text-charcoal border border-border-subtle'
@@ -440,7 +554,7 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => setScope('liquid')}
-                className={`px-6 py-2 rounded-full font-body transition-colors ${
+                className={`px-6 py-2 rounded-full font-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1 ${
                   scope === 'liquid'
                     ? 'bg-terra text-white'
                     : 'bg-white text-charcoal border border-border-subtle'
@@ -477,7 +591,7 @@ export default function DashboardPage() {
                     <button
                       key={days}
                       onClick={() => setTimeFrame(days)}
-                      className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
+                      className={`px-4 py-2 rounded-lg font-body text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1 ${
                         timeFrame === days
                           ? 'bg-terra text-white'
                           : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
@@ -494,7 +608,7 @@ export default function DashboardPage() {
                     <button
                       key={days}
                       onClick={() => setTimeFrame(days)}
-                      className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
+                      className={`px-4 py-2 rounded-lg font-body text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1 ${
                         timeFrame === days
                           ? 'bg-terra text-white'
                           : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
@@ -593,63 +707,12 @@ export default function DashboardPage() {
                 <h2 className="font-heading text-2xl text-charcoal mb-4">Checking & Savings</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {checkingSavings.map((account, index) => (
-                    <motion.div
+                    <AccountCard
                       key={account.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm relative"
-                    >
-                      <button
-                        onClick={() => { setConfirmDeleteId(account.id); setDeleteError(null); }}
-                        className="absolute top-4 right-4 text-charcoal/25 hover:text-red-500 transition-colors"
-                        aria-label="Delete account"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2 pr-6">
-                        {account.name}
-                      </h3>
-                      <p className="font-body text-sm text-charcoal/60 mb-4">
-                        {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
-                        {account.is_primary_payment && (
-                          <span className="ml-2 text-terra">(Primary)</span>
-                        )}
-                      </p>
-                      <p className="font-body text-2xl text-charcoal font-semibold">
-                        {formatCurrency(account.latest_balance)}
-                      </p>
-                      {account.last_synced && (
-                        <p className="font-body text-xs text-charcoal/40 mt-2">
-                          Synced {formatTimeAgo(account.last_synced)}
-                        </p>
-                      )}
-                      {confirmDeleteId === account.id && (
-                        <div className="mt-4 pt-4 border-t border-border-subtle">
-                          <p className="font-body text-sm text-charcoal mb-2">Remove this account?</p>
-                          {deleteError && (
-                            <p className="font-body text-xs text-red-600 mb-2">{deleteError}</p>
-                          )}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => { setConfirmDeleteId(null); setDeleteError(null); }}
-                              className="flex-1 px-3 py-1.5 border border-border-subtle rounded font-body text-sm text-charcoal hover:bg-cream transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAccount(account.id)}
-                              className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-body text-sm hover:bg-red-600 transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
+                      account={account}
+                      index={index}
+                      {...accountCardProps}
+                    />
                   ))}
                 </div>
               </div>
@@ -661,65 +724,12 @@ export default function DashboardPage() {
                 <h2 className="font-heading text-2xl text-charcoal mb-4">Credit Cards</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {creditCards.map((account, index) => (
-                    <motion.div
+                    <AccountCard
                       key={account.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm relative"
-                    >
-                      <button
-                        onClick={() => { setConfirmDeleteId(account.id); setDeleteError(null); }}
-                        className="absolute top-4 right-4 text-charcoal/25 hover:text-red-500 transition-colors"
-                        aria-label="Delete account"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2 pr-6">
-                        {account.name}
-                      </h3>
-                      <p className="font-body text-sm text-charcoal/60 mb-2">
-                        {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
-                      </p>
-                      {account.payment_day_of_month && (
-                        <p className="font-body text-sm text-charcoal/60 mb-4">
-                          Payment due day: {account.payment_day_of_month}
-                        </p>
-                      )}
-                      <p className="font-body text-2xl text-charcoal font-semibold">
-                        {formatCurrency(account.latest_balance)}
-                      </p>
-                      {account.last_synced && (
-                        <p className="font-body text-xs text-charcoal/40 mt-2">
-                          Synced {formatTimeAgo(account.last_synced)}
-                        </p>
-                      )}
-                      {confirmDeleteId === account.id && (
-                        <div className="mt-4 pt-4 border-t border-border-subtle">
-                          <p className="font-body text-sm text-charcoal mb-2">Remove this account?</p>
-                          {deleteError && (
-                            <p className="font-body text-xs text-red-600 mb-2">{deleteError}</p>
-                          )}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => { setConfirmDeleteId(null); setDeleteError(null); }}
-                              className="flex-1 px-3 py-1.5 border border-border-subtle rounded font-body text-sm text-charcoal hover:bg-cream transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAccount(account.id)}
-                              className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-body text-sm hover:bg-red-600 transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
+                      account={account}
+                      index={index}
+                      {...accountCardProps}
+                    />
                   ))}
                 </div>
               </div>
@@ -731,60 +741,12 @@ export default function DashboardPage() {
                 <h2 className="font-heading text-2xl text-charcoal mb-4">Retirement</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {retirement.map((account, index) => (
-                    <motion.div
+                    <AccountCard
                       key={account.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm relative"
-                    >
-                      <button
-                        onClick={() => { setConfirmDeleteId(account.id); setDeleteError(null); }}
-                        className="absolute top-4 right-4 text-charcoal/25 hover:text-red-500 transition-colors"
-                        aria-label="Delete account"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2 pr-6">
-                        {account.name}
-                      </h3>
-                      <p className="font-body text-sm text-charcoal/60 mb-4">
-                        {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
-                      </p>
-                      <p className="font-body text-2xl text-charcoal font-semibold">
-                        {formatCurrency(account.latest_balance)}
-                      </p>
-                      {account.last_synced && (
-                        <p className="font-body text-xs text-charcoal/40 mt-2">
-                          Synced {formatTimeAgo(account.last_synced)}
-                        </p>
-                      )}
-                      {confirmDeleteId === account.id && (
-                        <div className="mt-4 pt-4 border-t border-border-subtle">
-                          <p className="font-body text-sm text-charcoal mb-2">Remove this account?</p>
-                          {deleteError && (
-                            <p className="font-body text-xs text-red-600 mb-2">{deleteError}</p>
-                          )}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => { setConfirmDeleteId(null); setDeleteError(null); }}
-                              className="flex-1 px-3 py-1.5 border border-border-subtle rounded font-body text-sm text-charcoal hover:bg-cream transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAccount(account.id)}
-                              className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-body text-sm hover:bg-red-600 transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
+                      account={account}
+                      index={index}
+                      {...accountCardProps}
+                    />
                   ))}
                 </div>
               </div>
@@ -819,7 +781,7 @@ export default function DashboardPage() {
                     </h2>
                     <Link
                       href="/rules"
-                      className="text-sm font-body text-terra hover:underline"
+                      className="text-sm font-body text-terra hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
                       onClick={closeRulesModal}
                     >
                       View All Rules
@@ -914,13 +876,13 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={closeRulesModal}
-                        className="flex-1 px-4 py-2 border border-border-subtle rounded-lg font-body text-charcoal hover:bg-cream transition-colors"
+                        className="flex-1 px-4 py-2 border border-border-subtle rounded-lg font-body text-charcoal hover:bg-cream transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-terra text-white rounded-lg font-body hover:opacity-90 transition-opacity"
+                        className="flex-1 px-4 py-2 bg-terra text-white rounded-lg font-body hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra focus-visible:ring-offset-1"
                       >
                         Create
                       </button>
