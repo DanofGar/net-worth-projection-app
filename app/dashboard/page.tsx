@@ -62,6 +62,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [timeFrame, setTimeFrame] = useState<number>(15);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesModalError, setRulesModalError] = useState<string | null>(null);
   const [rulesFormData, setRulesFormData] = useState({
@@ -90,6 +92,29 @@ export default function DashboardPage() {
       setIsRefreshing(false);
     }
   };
+
+  async function handleDeleteAccount(id: string) {
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete account');
+      }
+      const remaining = accounts.filter(a => a.id !== id);
+      setAccounts(remaining);
+      setConfirmDeleteId(null);
+      if (remaining.length > 0) {
+        await fetchProjection();
+      } else {
+        setProjection(null);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error deleting account:', err);
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete account');
+    }
+  }
 
   const formatTimeAgo = (isoString: string | null): string => {
     if (!isoString) return '';
@@ -516,9 +541,18 @@ export default function DashboardPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
+                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm relative"
                     >
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2">
+                      <button
+                        onClick={() => { setConfirmDeleteId(account.id); setDeleteError(null); }}
+                        className="absolute top-4 right-4 text-charcoal/25 hover:text-red-500 transition-colors"
+                        aria-label="Delete account"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
+                      <h3 className="font-body text-lg text-charcoal font-medium mb-2 pr-6">
                         {account.name}
                       </h3>
                       <p className="font-body text-sm text-charcoal/60 mb-4">
@@ -534,6 +568,28 @@ export default function DashboardPage() {
                         <p className="font-body text-xs text-charcoal/40 mt-2">
                           Synced {formatTimeAgo(account.last_synced)}
                         </p>
+                      )}
+                      {confirmDeleteId === account.id && (
+                        <div className="mt-4 pt-4 border-t border-border-subtle">
+                          <p className="font-body text-sm text-charcoal mb-2">Remove this account?</p>
+                          {deleteError && (
+                            <p className="font-body text-xs text-red-600 mb-2">{deleteError}</p>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setConfirmDeleteId(null); setDeleteError(null); }}
+                              className="flex-1 px-3 py-1.5 border border-border-subtle rounded font-body text-sm text-charcoal hover:bg-cream transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAccount(account.id)}
+                              className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-body text-sm hover:bg-red-600 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </motion.div>
                   ))}
@@ -553,9 +609,18 @@ export default function DashboardPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
+                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm relative"
                     >
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2">
+                      <button
+                        onClick={() => { setConfirmDeleteId(account.id); setDeleteError(null); }}
+                        className="absolute top-4 right-4 text-charcoal/25 hover:text-red-500 transition-colors"
+                        aria-label="Delete account"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
+                      <h3 className="font-body text-lg text-charcoal font-medium mb-2 pr-6">
                         {account.name}
                       </h3>
                       <p className="font-body text-sm text-charcoal/60 mb-2">
@@ -573,6 +638,28 @@ export default function DashboardPage() {
                         <p className="font-body text-xs text-charcoal/40 mt-2">
                           Synced {formatTimeAgo(account.last_synced)}
                         </p>
+                      )}
+                      {confirmDeleteId === account.id && (
+                        <div className="mt-4 pt-4 border-t border-border-subtle">
+                          <p className="font-body text-sm text-charcoal mb-2">Remove this account?</p>
+                          {deleteError && (
+                            <p className="font-body text-xs text-red-600 mb-2">{deleteError}</p>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setConfirmDeleteId(null); setDeleteError(null); }}
+                              className="flex-1 px-3 py-1.5 border border-border-subtle rounded font-body text-sm text-charcoal hover:bg-cream transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAccount(account.id)}
+                              className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-body text-sm hover:bg-red-600 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </motion.div>
                   ))}
@@ -592,9 +679,18 @@ export default function DashboardPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                       whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
+                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm relative"
                     >
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2">
+                      <button
+                        onClick={() => { setConfirmDeleteId(account.id); setDeleteError(null); }}
+                        className="absolute top-4 right-4 text-charcoal/25 hover:text-red-500 transition-colors"
+                        aria-label="Delete account"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
+                      <h3 className="font-body text-lg text-charcoal font-medium mb-2 pr-6">
                         {account.name}
                       </h3>
                       <p className="font-body text-sm text-charcoal/60 mb-4">
@@ -607,6 +703,28 @@ export default function DashboardPage() {
                         <p className="font-body text-xs text-charcoal/40 mt-2">
                           Synced {formatTimeAgo(account.last_synced)}
                         </p>
+                      )}
+                      {confirmDeleteId === account.id && (
+                        <div className="mt-4 pt-4 border-t border-border-subtle">
+                          <p className="font-body text-sm text-charcoal mb-2">Remove this account?</p>
+                          {deleteError && (
+                            <p className="font-body text-xs text-red-600 mb-2">{deleteError}</p>
+                          )}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setConfirmDeleteId(null); setDeleteError(null); }}
+                              className="flex-1 px-3 py-1.5 border border-border-subtle rounded font-body text-sm text-charcoal hover:bg-cream transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAccount(account.id)}
+                              className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-body text-sm hover:bg-red-600 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </motion.div>
                   ))}

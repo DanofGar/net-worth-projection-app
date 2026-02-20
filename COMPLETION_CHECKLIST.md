@@ -29,7 +29,7 @@ Track progress across Ralph loop iterations. Update this file after each task.
   - Error renders as styled red banner below the Connect button
   - Also hooked `onError` callback to set the same error state
 
-- [ ] **T7** — Add **account deletion** capability:
+- [x] **T7** — Add **account deletion** capability:
   - Add `DELETE /api/accounts/[id]` endpoint (deletes account and its balances, cascades from schema)
   - Add a delete button (trash icon) on each account card in dashboard, with confirmation UI (inline, no browser confirm())
   - After deletion, refetch accounts and projection
