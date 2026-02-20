@@ -1,7 +1,7 @@
 'use client';
 
 import { createBrowserClient } from '@/lib/supabase';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Mode = 'signin' | 'signup' | 'forgot';
@@ -15,6 +15,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createBrowserClient();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'link_expired') {
+      setError('Your reset link has expired. Request a new one below.');
+      setMode('forgot');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

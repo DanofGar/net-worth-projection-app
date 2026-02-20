@@ -28,23 +28,25 @@ export async function proxy(req: NextRequest) {
     }
   );
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
   // Public routes that don't require authentication
   const isLoginPage = req.nextUrl.pathname === '/login';
   const isLandingPage = req.nextUrl.pathname === '/landing';
+  const isResetPage = req.nextUrl.pathname === '/reset-password';
+  const isAuthCallback = req.nextUrl.pathname.startsWith('/auth/callback');
   const isApiRoute = req.nextUrl.pathname.startsWith('/api');
-  const isPublicAsset = req.nextUrl.pathname.startsWith('/_next') || 
+  const isPublicAsset = req.nextUrl.pathname.startsWith('/_next') ||
                         req.nextUrl.pathname.startsWith('/favicon');
-  const isPublicRoute = isLoginPage || isLandingPage || isApiRoute || isPublicAsset;
+  const isPublicRoute = isLoginPage || isLandingPage || isResetPage || isAuthCallback || isApiRoute || isPublicAsset;
 
   // Redirect unauthenticated users to login (except public routes)
-  if (!session && !isPublicRoute) {
+  if (!user && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
   // Redirect authenticated users away from login to dashboard
-  if (session && isLoginPage) {
+  if (user && isLoginPage) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
