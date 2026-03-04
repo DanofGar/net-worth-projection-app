@@ -24,7 +24,7 @@ export async function GET() {
   const accountIds = (accounts || []).map(a => a.id);
   const { data: balancesData, error: balancesError } = await supabase
     .from('balances')
-    .select('account_id, ledger, polled_at')
+    .select('account_id, ledger, available, polled_at')
     .in('account_id', accountIds)
     .order('polled_at', { ascending: false });
 
@@ -33,11 +33,12 @@ export async function GET() {
   }
 
   // Deduplicate: keep only the latest balance per account
-  const latestBalances = new Map<string, { ledger: number; polled_at: string }>();
+  const latestBalances = new Map<string, { ledger: number; available: number | null; polled_at: string }>();
   for (const balance of balancesData || []) {
     if (!latestBalances.has(balance.account_id)) {
       latestBalances.set(balance.account_id, {
         ledger: parseFloat(balance.ledger.toString()),
+        available: balance.available != null ? parseFloat(balance.available.toString()) : null,
         polled_at: balance.polled_at,
       });
     }
@@ -48,6 +49,7 @@ export async function GET() {
     return {
       ...account,
       latest_balance: bal?.ledger ?? 0,
+      latest_available: bal?.available ?? null,
       last_polled_at: bal?.polled_at ?? null,
     };
   });

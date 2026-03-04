@@ -38,6 +38,7 @@ interface Account {
   is_primary_payment: boolean;
   payment_day_of_month: number | null;
   latest_balance: number;
+  latest_available: number | null;
   last_polled_at: string | null;
 }
 
@@ -851,9 +852,41 @@ export default function DashboardPage() {
                           Payment due day: {account.payment_day_of_month}
                         </p>
                       )}
-                      <p className="font-body text-2xl text-charcoal font-semibold">
-                        {formatCurrency(account.latest_balance)}
-                      </p>
+                      {(() => {
+                        const ledger = account.latest_balance;
+                        const available = account.latest_available;
+                        if (available != null) {
+                          const creditLimit = ledger + available;
+                          const utilization = creditLimit > 0 ? ledger / creditLimit : 0;
+                          const pct = Math.round(utilization * 100);
+                          const barColor =
+                            pct < 30 ? '#22c55e' :
+                            pct < 50 ? '#eab308' :
+                            pct < 75 ? '#f97316' :
+                            '#ef4444';
+                          return (
+                            <>
+                              <p className="font-body text-2xl text-charcoal font-semibold">
+                                {formatCurrency(ledger)}
+                              </p>
+                              <p className="font-body text-xs text-charcoal/60 mt-1 mb-2">
+                                {formatCurrency(ledger)} / {formatCurrency(creditLimit)} ({pct}%)
+                              </p>
+                              <div className="w-full bg-border-subtle rounded-full h-1.5 mb-2">
+                                <div
+                                  className="h-1.5 rounded-full transition-all"
+                                  style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+                                />
+                              </div>
+                            </>
+                          );
+                        }
+                        return (
+                          <p className="font-body text-2xl text-charcoal font-semibold">
+                            {formatCurrency(ledger)}
+                          </p>
+                        );
+                      })()}
                       <div className="flex items-center justify-between mt-2">
                         {account.last_polled_at && (
                           <p className="font-body text-xs text-charcoal/40">
