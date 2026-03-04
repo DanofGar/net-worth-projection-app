@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@/lib/supabase';
+import { toast } from '@/app/components/Toast';
 import { format, parseISO, addWeeks, addMonths } from 'date-fns';
 
 interface RecurringRule {
@@ -63,8 +64,9 @@ export default function RulesPage() {
       const data: RecurringRule[] = await response.json();
       setRules(data);
     } catch (err) {
-      console.error('Error fetching rules:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load rules');
+      const msg = err instanceof Error ? err.message : 'Failed to load rules';
+      toast('error', msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -138,8 +140,9 @@ export default function RulesPage() {
       closeModal();
       fetchRules();
     } catch (err) {
-      console.error('Error saving rule:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save rule');
+      const msg = err instanceof Error ? err.message : 'Failed to save rule';
+      toast('error', msg);
+      setError(msg);
     }
   }
 
@@ -159,8 +162,9 @@ export default function RulesPage() {
 
       fetchRules();
     } catch (err) {
-      console.error('Error deleting rule:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete rule');
+      const msg = err instanceof Error ? err.message : 'Failed to delete rule';
+      toast('error', msg);
+      setError(msg);
     }
   }
 
@@ -178,8 +182,9 @@ export default function RulesPage() {
 
       fetchRules();
     } catch (err) {
-      console.error('Error toggling rule:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update rule');
+      const msg = err instanceof Error ? err.message : 'Failed to update rule';
+      toast('error', msg);
+      setError(msg);
     }
   }
 
@@ -288,7 +293,11 @@ export default function RulesPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20, height: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
+                  className={`bg-white rounded-lg p-6 shadow-sm border-l-4 ${
+                    rule.amount >= 0
+                      ? 'border-l-green-500 border border-l-green-500 border-t-border-subtle border-r-border-subtle border-b-border-subtle'
+                      : 'border-l-red-500 border border-l-red-500 border-t-border-subtle border-r-border-subtle border-b-border-subtle'
+                  }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

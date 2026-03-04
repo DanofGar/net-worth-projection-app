@@ -299,11 +299,17 @@ export default function DashboardPage() {
             Financial Projections
           </h1>
           <div className="flex gap-3">
+            <Link
+              href="/rules"
+              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+            >
+              Manage Rules
+            </Link>
             <button
               onClick={openRulesModal}
               className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
             >
-              Manage Rules
+              Quick Add Rule
             </button>
             <a
               href="/connect"
