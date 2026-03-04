@@ -36,11 +36,22 @@ export async function middleware(req: NextRequest) {
   const isApiRoute = req.nextUrl.pathname.startsWith('/api');
   const isPublicAsset = req.nextUrl.pathname.startsWith('/_next') ||
                         req.nextUrl.pathname.startsWith('/favicon');
-  const isPublicRoute = isLoginPage || isLandingPage || isApiRoute || isPublicAsset;
+  const isResetPassword = req.nextUrl.pathname === '/reset-password';
+  const isUpdatePassword = req.nextUrl.pathname === '/update-password';
+  const isPublicRoute = isLoginPage || isLandingPage || isApiRoute || isPublicAsset || isResetPassword || isUpdatePassword;
 
-  // Redirect unauthenticated users to login (except public routes)
+  // Redirect unauthenticated users to login (except public routes).
+  // Pass ?expired=1 when the request had auth cookies but no valid user,
+  // which indicates an expired or invalidated session.
   if (!user && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    const hadAuthCookies = req.cookies.getAll().some((c) =>
+      c.name.startsWith('sb-') && c.name.endsWith('-auth-token')
+    );
+    const loginUrl = new URL('/login', req.url);
+    if (hadAuthCookies) {
+      loginUrl.searchParams.set('expired', '1');
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   // Redirect authenticated users away from login to dashboard

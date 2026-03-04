@@ -235,8 +235,7 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => {
     setSigningOut(true);
-    // Unsubscribe before signing out so the SIGNED_OUT event does not
-    // trigger the "session expired" redirect path.
+    intentionalSignOut.current = true;
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
@@ -245,7 +244,8 @@ export default function DashboardPage() {
   // Detect expired or invalidated sessions client-side and redirect to login.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
+      // Only treat SIGNED_OUT as "expired" when it was not triggered by the user clicking Sign Out.
+      if (event === 'SIGNED_OUT' && !intentionalSignOut.current) {
         router.push('/login?expired=1');
       }
     });
