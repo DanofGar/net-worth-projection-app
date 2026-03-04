@@ -1,39 +1,12 @@
 import { Handler, schedule } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-import https from 'https';
+import { tellerFetch } from '../../lib/teller';
 
 // Initialize Supabase admin client (bypasses RLS)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 );
-
-// Create Teller mTLS agent
-function getTellerAgent() {
-  const cert = Buffer.from(process.env.TELLER_CERT_B64!, 'base64');
-  const key = Buffer.from(process.env.TELLER_KEY_B64!, 'base64');
-  return new https.Agent({ cert, key });
-}
-
-async function tellerFetch(endpoint: string, accessToken: string) {
-  const agent = getTellerAgent();
-  const auth = Buffer.from(`${accessToken}:`).toString('base64');
-
-  const response = await fetch(`https://api.teller.io${endpoint}`, {
-    // @ts-ignore - Node fetch supports agent
-    agent,
-    headers: {
-      Authorization: `Basic ${auth}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Teller API error ${response.status}: ${error}`);
-  }
-
-  return response.json();
-}
 
 const handler: Handler = async () => {
   console.log('Starting scheduled balance poll...');

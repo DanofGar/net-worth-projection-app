@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@/lib/supabase';
 import { toast } from '@/app/components/Toast';
@@ -38,6 +38,7 @@ interface Account {
   is_primary_payment: boolean;
   payment_day_of_month: number | null;
   latest_balance: number;
+  last_polled_at: string | null;
 }
 
 interface RecurringRule {
@@ -61,7 +62,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeFrame, setTimeFrame] = useState<number>(15);
+  const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [ruleSubmitting, setRuleSubmitting] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesModalError, setRulesModalError] = useState<string | null>(null);
@@ -73,6 +76,38 @@ export default function DashboardPage() {
     end_date: '',
     active: true,
   });
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const response = await fetch('/api/accounts/refresh', { method: 'POST' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to refresh balances');
+      }
+      toast('success', 'Balances refreshed');
+      await fetchAccounts();
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to refresh');
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleDisconnect(accountId: string) {
+    if (!confirm('Remove this account? This cannot be undone.')) return;
+    setDisconnecting(accountId);
+    try {
+      const response = await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to remove account');
+      toast('success', 'Account removed');
+      setAccounts((prev) => prev.filter((a) => a.id !== accountId));
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to remove account');
+    } finally {
+      setDisconnecting(null);
+    }
+  }
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -311,6 +346,13 @@ export default function DashboardPage() {
             >
               Quick Add Rule
             </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh Balances'}
+            </button>
             <a
               href="/connect"
               className="bg-terra text-white px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
@@ -543,9 +585,18 @@ export default function DashboardPage() {
                       whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                       className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
                     >
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2">
-                        {account.name}
-                      </h3>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-body text-lg text-charcoal font-medium">
+                          {account.name}
+                        </h3>
+                        <button
+                          onClick={() => handleDisconnect(account.id)}
+                          disabled={disconnecting === account.id}
+                          className="text-xs font-body text-charcoal/40 hover:text-red-600 transition-colors"
+                        >
+                          {disconnecting === account.id ? '...' : 'Remove'}
+                        </button>
+                      </div>
                       <p className="font-body text-sm text-charcoal/60 mb-4">
                         {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
                         {account.is_primary_payment && (
@@ -555,6 +606,11 @@ export default function DashboardPage() {
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
+                      {account.last_polled_at && (
+                        <p className="font-body text-xs text-charcoal/40 mt-2">
+                          Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
+                        </p>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -575,9 +631,18 @@ export default function DashboardPage() {
                       whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                       className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
                     >
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2">
-                        {account.name}
-                      </h3>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-body text-lg text-charcoal font-medium">
+                          {account.name}
+                        </h3>
+                        <button
+                          onClick={() => handleDisconnect(account.id)}
+                          disabled={disconnecting === account.id}
+                          className="text-xs font-body text-charcoal/40 hover:text-red-600 transition-colors"
+                        >
+                          {disconnecting === account.id ? '...' : 'Remove'}
+                        </button>
+                      </div>
                       <p className="font-body text-sm text-charcoal/60 mb-2">
                         {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
                       </p>
@@ -589,6 +654,11 @@ export default function DashboardPage() {
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
+                      {account.last_polled_at && (
+                        <p className="font-body text-xs text-charcoal/40 mt-2">
+                          Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
+                        </p>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -609,15 +679,29 @@ export default function DashboardPage() {
                       whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                       className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
                     >
-                      <h3 className="font-body text-lg text-charcoal font-medium mb-2">
-                        {account.name}
-                      </h3>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-body text-lg text-charcoal font-medium">
+                          {account.name}
+                        </h3>
+                        <button
+                          onClick={() => handleDisconnect(account.id)}
+                          disabled={disconnecting === account.id}
+                          className="text-xs font-body text-charcoal/40 hover:text-red-600 transition-colors"
+                        >
+                          {disconnecting === account.id ? '...' : 'Remove'}
+                        </button>
+                      </div>
                       <p className="font-body text-sm text-charcoal/60 mb-4">
                         {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
                       </p>
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
+                      {account.last_polled_at && (
+                        <p className="font-body text-xs text-charcoal/40 mt-2">
+                          Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
+                        </p>
+                      )}
                     </motion.div>
                   ))}
                 </div>

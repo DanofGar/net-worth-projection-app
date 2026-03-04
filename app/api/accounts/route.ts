@@ -33,17 +33,24 @@ export async function GET() {
   }
 
   // Deduplicate: keep only the latest balance per account
-  const latestBalances = new Map<string, number>();
+  const latestBalances = new Map<string, { ledger: number; polled_at: string }>();
   for (const balance of balancesData || []) {
     if (!latestBalances.has(balance.account_id)) {
-      latestBalances.set(balance.account_id, parseFloat(balance.ledger.toString()));
+      latestBalances.set(balance.account_id, {
+        ledger: parseFloat(balance.ledger.toString()),
+        polled_at: balance.polled_at,
+      });
     }
   }
 
-  const accountsWithBalances = (accounts || []).map(account => ({
-    ...account,
-    latest_balance: latestBalances.get(account.id) ?? 0,
-  }));
+  const accountsWithBalances = (accounts || []).map(account => {
+    const bal = latestBalances.get(account.id);
+    return {
+      ...account,
+      latest_balance: bal?.ledger ?? 0,
+      last_polled_at: bal?.polled_at ?? null,
+    };
+  });
 
   return NextResponse.json(accountsWithBalances);
 }
