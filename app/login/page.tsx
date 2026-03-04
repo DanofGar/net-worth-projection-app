@@ -1,21 +1,30 @@
 'use client';
 
+import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createBrowserClient } from '@/lib/supabase';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { toast } from '@/app/components/Toast';
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const supabase = useMemo(() => createBrowserClient(), []);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const supabase = createBrowserClient();
+
+  // Show session-expired banner when redirected from middleware
+  useEffect(() => {
+    if (searchParams.get('expired') === '1') {
+      toast('error', 'Your session expired. Please sign in again.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
 
     const { error } = isSignUp
@@ -25,12 +34,12 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      toast('error', error.message);
       return;
     }
 
     if (isSignUp) {
-      setError('Check your email to confirm your account.');
+      toast('success', 'Check your email to confirm your account.');
       return;
     }
 
@@ -64,8 +73,15 @@ export default function LoginPage() {
             minLength={6}
           />
 
-          {error && (
-            <p className="text-red-600 text-sm font-body">{error}</p>
+          {!isSignUp && (
+            <div className="text-right">
+              <Link
+                href="/reset-password"
+                className="text-charcoal font-body text-sm underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
           )}
 
           <button
@@ -73,7 +89,9 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-terra text-white py-3 rounded-lg font-body disabled:opacity-50"
           >
-            {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            {loading
+              ? isSignUp ? 'Creating account...' : 'Signing in...'
+              : isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
         </form>
 
@@ -85,5 +103,13 @@ export default function LoginPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

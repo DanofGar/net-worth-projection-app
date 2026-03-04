@@ -65,6 +65,7 @@ export default function DashboardPage() {
   const [timeFrame, setTimeFrame] = useState<number>(15);
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const intentionalSignOut = useRef(false);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Record<string, any[]>>({});
@@ -72,6 +73,7 @@ export default function DashboardPage() {
   const [txError, setTxError] = useState<string | null>(null);
   const [historyData, setHistoryData] = useState<{ date: string; netWorth: number; liquidNetWorth: number }[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [ruleSubmitting, setRuleSubmitting] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesModalError, setRulesModalError] = useState<string | null>(null);
@@ -97,6 +99,62 @@ export default function DashboardPage() {
     } finally {
       setHistoryLoading(false);
     }
+  }
+
+  async function fetchRules() {
+    try {
+      const res = await fetch('/api/rules');
+      if (res.ok) {
+        const data: RecurringRule[] = await res.json();
+        setRecurringRules(data.filter((r) => r.active));
+      }
+    } catch {
+      // Non-critical — CSV will just have empty rules column
+    }
+  }
+
+  function ruleAppliesToDate(rule: RecurringRule, date: Date): boolean {
+    const anchor = new Date(rule.anchor_date);
+    anchor.setHours(0, 0, 0, 0);
+    const endDate = rule.end_date ? new Date(rule.end_date) : null;
+    if (endDate) endDate.setHours(23, 59, 59, 999);
+    if (date < anchor) return false;
+    if (endDate && date > endDate) return false;
+    const daysDiff = Math.floor((date.getTime() - anchor.getTime()) / (1000 * 60 * 60 * 24));
+    switch (rule.frequency) {
+      case 'once': return daysDiff === 0;
+      case 'weekly': return daysDiff % 7 === 0;
+      case 'biweekly': return daysDiff % 14 === 0;
+      case 'monthly': return date.getDate() === anchor.getDate();
+      default: return false;
+    }
+  }
+
+  function exportCSV() {
+    if (!projection?.points.length) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const filename = `projection-${viewMode}-${timeFrame}d-${today}.csv`;
+
+    const header = 'Date,Projected Balance,Rules Applied';
+    const rows = projection.points.map((point) => {
+      const date = new Date(point.date + 'T00:00:00');
+      const triggered = recurringRules
+        .filter((rule) => ruleAppliesToDate(rule, date))
+        .map((rule) => rule.name)
+        .join('; ');
+      const escapedRules = triggered.includes(',') ? `"${triggered}"` : triggered;
+      return `${point.date},${point.value},${escapedRules}`;
+    });
+
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   async function handleRefresh() {
@@ -177,14 +235,35 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => {
     setSigningOut(true);
+    // Unsubscribe before signing out so the SIGNED_OUT event does not
+    // trigger the "session expired" redirect path.
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
   };
 
+  // Detect expired or invalidated sessions client-side and redirect to login.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        router.push('/login?expired=1');
+      }
+    });
+
+    // Also guard: if there is no active session on mount, redirect immediately.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push('/login?expired=1');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase, router]);
+
   useEffect(() => {
     fetchAccounts();
     fetchHistory();
+    fetchRules();
   }, []);
 
   const accountsLoaded = useRef(false);
@@ -585,6 +664,16 @@ export default function DashboardPage() {
 
         {/* Projection Chart */}
         <div className="bg-white border border-border-subtle rounded-lg p-6 mb-8 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading text-xl text-charcoal">Projection</h2>
+            <button
+              onClick={exportCSV}
+              disabled={!projection?.points.length || loading}
+              className="bg-white text-charcoal border border-border-subtle px-4 py-1.5 rounded-lg font-body text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
+            >
+              Export CSV
+            </button>
+          </div>
           {loading ? (
             <div className="h-96 animate-pulse flex flex-col justify-end p-4 gap-2">
               <div className="flex items-end gap-1 h-full">
