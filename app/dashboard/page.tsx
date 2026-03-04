@@ -53,7 +53,7 @@ interface RecurringRule {
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createBrowserClient();
-  const [viewMode, setViewMode] = useState<ViewMode>('net_worth');
+  const [viewMode, setViewMode] = useState<ViewMode>('cash_flow');
   const [scope, setScope] = useState<Scope>('total');
   const [projection, setProjection] = useState<ProjectionResponse | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -315,16 +315,6 @@ export default function DashboardPage() {
         <div className="mb-8 space-y-4">
           <div className="flex gap-4">
             <button
-              onClick={() => setViewMode('net_worth')}
-              className={`px-6 py-2 rounded-full font-body transition-colors ${
-                viewMode === 'net_worth'
-                  ? 'bg-terra text-white'
-                  : 'bg-white text-charcoal border border-border-subtle'
-              }`}
-            >
-              Net Worth
-            </button>
-            <button
               onClick={() => setViewMode('cash_flow')}
               className={`px-6 py-2 rounded-full font-body transition-colors ${
                 viewMode === 'cash_flow'
@@ -333,6 +323,16 @@ export default function DashboardPage() {
               }`}
             >
               Cash Flow
+            </button>
+            <button
+              onClick={() => setViewMode('net_worth')}
+              className={`px-6 py-2 rounded-full font-body transition-colors ${
+                viewMode === 'net_worth'
+                  ? 'bg-terra text-white'
+                  : 'bg-white text-charcoal border border-border-subtle'
+              }`}
+            >
+              Net Worth
             </button>
           </div>
 
@@ -360,6 +360,23 @@ export default function DashboardPage() {
               </button>
             </div>
           )}
+
+          {/* Timeframe controls — visible in both modes */}
+          <div className="flex gap-3">
+            {[15, 30, 45, 60].map((days) => (
+              <button
+                key={days}
+                onClick={() => setTimeFrame(days)}
+                className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
+                  timeFrame === days
+                    ? 'bg-terra text-white'
+                    : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
+                }`}
+              >
+                {days}d
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Current Value Card */}
@@ -381,30 +398,6 @@ export default function DashboardPage() {
                   {formatCurrency(currentValue)}
                 </p>
               </div>
-              {viewMode === 'cash_flow' && (
-                <div className="flex flex-col gap-2 ml-4">
-                  <button
-                    onClick={() => setTimeFrame(30)}
-                    className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
-                      timeFrame === 30
-                        ? 'bg-terra text-white'
-                        : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
-                    }`}
-                  >
-                    30 days
-                  </button>
-                  <button
-                    onClick={() => setTimeFrame(45)}
-                    className={`px-4 py-2 rounded-lg font-body text-sm transition-colors ${
-                      timeFrame === 45
-                        ? 'bg-terra text-white'
-                        : 'bg-white text-charcoal border border-border-subtle hover:opacity-90'
-                    }`}
-                  >
-                    45 days
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -425,7 +418,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={400}>
-              <AreaChart data={chartData}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#D97757" stopOpacity={0.3}/>
@@ -436,14 +429,21 @@ export default function DashboardPage() {
                 <XAxis
                   dataKey="date"
                   stroke="#141413"
-                  style={{ fontFamily: 'var(--font-body)' }}
-                  interval="preserveStartEnd"
-                  tickCount={Math.min(8, chartData.length)}
+                  style={{ fontFamily: 'var(--font-body)', fontSize: '12px' }}
+                  interval={Math.max(0, Math.floor(chartData.length / 7) - 1)}
+                  tickMargin={8}
                 />
                 <YAxis
                   stroke="#141413"
-                  style={{ fontFamily: 'var(--font-body)' }}
-                  tickFormatter={(value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value)}
+                  style={{ fontFamily: 'var(--font-body)', fontSize: '12px' }}
+                  width={70}
+                  tickFormatter={(value: number) => {
+                    const abs = Math.abs(value);
+                    const sign = value < 0 ? '-' : '';
+                    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+                    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+                    return `${sign}$${abs}`;
+                  }}
                 />
                 <Tooltip
                   formatter={(value: number | undefined) => value !== undefined ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value) : ''}
