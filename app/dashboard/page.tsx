@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@/lib/supabase';
@@ -52,7 +52,7 @@ interface RecurringRule {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const supabase = createBrowserClient();
+  const supabase = useMemo(() => createBrowserClient(), []);
   const [viewMode, setViewMode] = useState<ViewMode>('cash_flow');
   const [scope, setScope] = useState<Scope>('total');
   const [projection, setProjection] = useState<ProjectionResponse | null>(null);
@@ -81,8 +81,10 @@ export default function DashboardPage() {
     fetchAccounts();
   }, []);
 
+  const accountsLoaded = useRef(false);
   useEffect(() => {
-    if (accounts.length > 0 || projection !== null) {
+    if (accounts.length > 0) {
+      accountsLoaded.current = true;
       fetchProjection();
     }
   }, [viewMode, scope, accounts.length, timeFrame]);
@@ -129,11 +131,7 @@ export default function DashboardPage() {
 
       const data: Account[] = await response.json();
       setAccounts(data);
-
-      // Fetch projection after accounts are loaded
-      if (data.length > 0) {
-        await fetchProjection();
-      } else {
+      if (data.length === 0) {
         setLoading(false);
       }
     } catch (err) {
@@ -656,24 +654,34 @@ export default function DashboardPage() {
                       <label className="block font-body text-sm text-charcoal mb-1">
                         Start Date
                       </label>
-                      <input
-                        type="date"
-                        value={rulesFormData.anchor_date}
-                        onChange={(e) => setRulesFormData({ ...rulesFormData, anchor_date: e.target.value })}
-                        required
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra"
-                      />
+                      <div
+                        className="cursor-pointer"
+                        onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker()}
+                      >
+                        <input
+                          type="date"
+                          value={rulesFormData.anchor_date}
+                          onChange={(e) => setRulesFormData({ ...rulesFormData, anchor_date: e.target.value })}
+                          required
+                          className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra cursor-pointer"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block font-body text-sm text-charcoal mb-1">
                         End Date (Optional)
                       </label>
-                      <input
-                        type="date"
-                        value={rulesFormData.end_date}
-                        onChange={(e) => setRulesFormData({ ...rulesFormData, end_date: e.target.value })}
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra"
-                      />
+                      <div
+                        className="cursor-pointer"
+                        onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker()}
+                      >
+                        <input
+                          type="date"
+                          value={rulesFormData.end_date}
+                          onChange={(e) => setRulesFormData({ ...rulesFormData, end_date: e.target.value })}
+                          className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra cursor-pointer"
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <input

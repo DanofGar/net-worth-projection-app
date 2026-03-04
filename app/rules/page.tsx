@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@/lib/supabase';
-import { format, parseISO, addDays, addWeeks, addMonths } from 'date-fns';
+import { format, parseISO, addWeeks, addMonths } from 'date-fns';
 
 interface RecurringRule {
   id: string;
@@ -20,7 +20,7 @@ interface RecurringRule {
 
 export default function RulesPage() {
   const router = useRouter();
-  const supabase = createBrowserClient();
+  const supabase = useMemo(() => createBrowserClient(), []);
   const [rules, setRules] = useState<RecurringRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +40,8 @@ export default function RulesPage() {
   }, []);
 
   async function checkAuthAndFetch() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       router.push('/login');
       return;
     }
@@ -425,24 +425,34 @@ export default function RulesPage() {
                       <label className="block font-body text-sm text-charcoal mb-1">
                         Start Date
                       </label>
-                      <input
-                        type="date"
-                        value={formData.anchor_date}
-                        onChange={(e) => setFormData({ ...formData, anchor_date: e.target.value })}
-                        required
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra"
-                      />
+                      <div
+                        className="cursor-pointer"
+                        onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker()}
+                      >
+                        <input
+                          type="date"
+                          value={formData.anchor_date}
+                          onChange={(e) => setFormData({ ...formData, anchor_date: e.target.value })}
+                          required
+                          className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra cursor-pointer"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block font-body text-sm text-charcoal mb-1">
                         End Date (Optional)
                       </label>
-                      <input
-                        type="date"
-                        value={formData.end_date}
-                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra"
-                      />
+                      <div
+                        className="cursor-pointer"
+                        onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker()}
+                      >
+                        <input
+                          type="date"
+                          value={formData.end_date}
+                          onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                          className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra cursor-pointer"
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <input
