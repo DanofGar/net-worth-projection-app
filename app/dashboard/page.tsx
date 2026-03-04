@@ -7,6 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createBrowserClient } from '@/lib/supabase';
+import { toast } from '@/app/components/Toast';
 
 type ViewMode = 'net_worth' | 'cash_flow';
 type Scope = 'total' | 'liquid';
@@ -60,6 +61,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeFrame, setTimeFrame] = useState<number>(15);
+  const [signingOut, setSigningOut] = useState(false);
+  const [ruleSubmitting, setRuleSubmitting] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesModalError, setRulesModalError] = useState<string | null>(null);
   const [rulesFormData, setRulesFormData] = useState({
@@ -72,6 +75,7 @@ export default function DashboardPage() {
   });
 
   const handleSignOut = async () => {
+    setSigningOut(true);
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
@@ -108,8 +112,9 @@ export default function DashboardPage() {
       const data: ProjectionResponse = await response.json();
       setProjection(data);
     } catch (err) {
-      console.error('Error fetching projection:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load projection');
+      const msg = err instanceof Error ? err.message : 'Failed to load projection';
+      toast('error', msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -135,8 +140,9 @@ export default function DashboardPage() {
         setLoading(false);
       }
     } catch (err) {
-      console.error('Error fetching accounts:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load accounts');
+      const msg = err instanceof Error ? err.message : 'Failed to load accounts';
+      toast('error', msg);
+      setError(msg);
       setLoading(false);
     }
   }
@@ -196,6 +202,7 @@ export default function DashboardPage() {
       return;
     }
 
+    setRuleSubmitting(true);
     const payload = {
       name: rulesFormData.name,
       amount,
@@ -217,14 +224,17 @@ export default function DashboardPage() {
         throw new Error(errorData.error || 'Failed to create rule');
       }
 
+      toast('success', 'Rule created');
       closeRulesModal();
-      // Refetch projection to reflect new rule
       if (accounts.length > 0) {
         await fetchProjection();
       }
     } catch (err) {
-      console.error('Error saving rule:', err);
-      setRulesModalError(err instanceof Error ? err.message : 'Failed to save rule');
+      const msg = err instanceof Error ? err.message : 'Failed to save rule';
+      toast('error', msg);
+      setRulesModalError(msg);
+    } finally {
+      setRuleSubmitting(false);
     }
   }
 
@@ -254,9 +264,10 @@ export default function DashboardPage() {
             </h1>
             <button
               onClick={handleSignOut}
-              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+              disabled={signingOut}
+              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              Sign Out
+              {signingOut ? 'Signing Out...' : 'Sign Out'}
             </button>
           </div>
 
@@ -302,9 +313,10 @@ export default function DashboardPage() {
             </a>
             <button
               onClick={handleSignOut}
-              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+              disabled={signingOut}
+              className="bg-white text-charcoal border border-border-subtle px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              Sign Out
+              {signingOut ? 'Signing Out...' : 'Sign Out'}
             </button>
           </div>
         </div>
@@ -378,7 +390,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Current Value Card */}
-        {projection && (
+        {loading && !projection ? (
+          <div className="bg-white border border-border-subtle rounded-lg p-6 mb-8 shadow-sm max-w-md animate-pulse">
+            <div className="h-5 bg-charcoal/10 rounded w-48 mb-3" />
+            <div className="h-10 bg-charcoal/10 rounded w-36" />
+          </div>
+        ) : projection ? (
           <div className="bg-white border border-border-subtle rounded-lg p-6 mb-8 shadow-sm max-w-md">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -398,17 +415,35 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Projection Chart */}
         <div className="bg-white border border-border-subtle rounded-lg p-6 mb-8 shadow-sm">
           {loading ? (
-            <div className="h-96 flex items-center justify-center">
-              <p className="font-body text-charcoal/60">Loading projection...</p>
+            <div className="h-96 animate-pulse flex flex-col justify-end p-4 gap-2">
+              <div className="flex items-end gap-1 h-full">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 bg-charcoal/5 rounded-t"
+                    style={{ height: `${30 + Math.random() * 60}%` }}
+                  />
+                ))}
+              </div>
+              <div className="h-4 bg-charcoal/10 rounded w-full" />
             </div>
           ) : error ? (
-            <div className="h-96 flex items-center justify-center">
-              <p className="font-body text-red-600">{error}</p>
+            <div className="h-96 flex flex-col items-center justify-center gap-4">
+              <div className="text-center">
+                <p className="font-body text-lg text-charcoal mb-1">Something went wrong</p>
+                <p className="font-body text-sm text-charcoal/60">{error}</p>
+              </div>
+              <button
+                onClick={() => { fetchAccounts(); }}
+                className="px-6 py-2 bg-terra text-white rounded-lg font-body hover:opacity-90 transition-opacity"
+              >
+                Retry
+              </button>
             </div>
           ) : chartData.length === 0 ? (
             <div className="h-96 flex items-center justify-center">
@@ -466,6 +501,24 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           )}
         </div>
+
+        {/* Accounts Skeleton */}
+        {loading && accounts.length === 0 && (
+          <div className="space-y-6 animate-pulse">
+            <div>
+              <div className="h-7 bg-charcoal/10 rounded w-48 mb-4" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white border border-border-subtle rounded-lg p-6">
+                    <div className="h-5 bg-charcoal/10 rounded w-32 mb-3" />
+                    <div className="h-4 bg-charcoal/10 rounded w-24 mb-4" />
+                    <div className="h-8 bg-charcoal/10 rounded w-28" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Accounts Summary */}
         {accounts.length > 0 && (
@@ -705,9 +758,10 @@ export default function DashboardPage() {
                       </button>
                       <button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-terra text-white rounded-lg font-body hover:opacity-90 transition-opacity"
+                        disabled={ruleSubmitting}
+                        className="flex-1 px-4 py-2 bg-terra text-white rounded-lg font-body hover:opacity-90 transition-opacity disabled:opacity-50"
                       >
-                        Create
+                        {ruleSubmitting ? 'Creating...' : 'Create'}
                       </button>
                     </div>
                   </form>

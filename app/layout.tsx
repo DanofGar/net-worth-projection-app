@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Newsreader, DM_Sans } from "next/font/google";
 import "./globals.css";
+import { ToastContainer } from "./components/Toast";
 
 const newsreader = Newsreader({ 
   subsets: ['latin'], 
@@ -28,6 +29,7 @@ export default function RootLayout({
         className={`${newsreader.variable} ${dmSans.variable} antialiased`}
       >
         {children}
+        <ToastContainer />
       </body>
     </html>
   );
