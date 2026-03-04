@@ -69,6 +69,8 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Record<string, any[]>>({});
   const [txLoading, setTxLoading] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+  const [historyData, setHistoryData] = useState<{ date: string; netWorth: number; liquidNetWorth: number }[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [ruleSubmitting, setRuleSubmitting] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesModalError, setRulesModalError] = useState<string | null>(null);
@@ -80,6 +82,21 @@ export default function DashboardPage() {
     end_date: '',
     active: true,
   });
+
+  async function fetchHistory() {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch('/api/history');
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryData(data);
+      }
+    } catch {
+      // Non-critical, don't show error
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -166,6 +183,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchAccounts();
+    fetchHistory();
   }, []);
 
   const accountsLoaded = useRef(false);
@@ -648,6 +666,80 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           )}
         </div>
+
+        {/* Historical Net Worth */}
+        {historyData.length >= 2 && (
+          <div className="bg-white border border-border-subtle rounded-lg p-6 mb-8 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-heading text-2xl text-charcoal">Net Worth History</h2>
+              {(() => {
+                const first = historyData[0];
+                const last = historyData[historyData.length - 1];
+                const change = last.netWorth - first.netWorth;
+                return (
+                  <span className={`font-body text-sm font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {change >= 0 ? '+' : ''}{formatCurrency(change)} since {format(parseISO(first.date), 'MMM d')}
+                  </span>
+                );
+              })()}
+            </div>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={historyData.map(d => ({
+                date: format(parseISO(d.date), 'MMM d'),
+                netWorth: d.netWorth,
+                liquidNetWorth: d.liquidNetWorth,
+              }))} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="colorHistory" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#141413" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#141413" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E6E4DD" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  stroke="#141413"
+                  style={{ fontFamily: 'var(--font-body)', fontSize: '12px' }}
+                  interval={Math.max(0, Math.floor(historyData.length / 7) - 1)}
+                />
+                <YAxis
+                  stroke="#141413"
+                  style={{ fontFamily: 'var(--font-body)', fontSize: '12px' }}
+                  width={70}
+                  tickFormatter={(value: number) => {
+                    const abs = Math.abs(value);
+                    const sign = value < 0 ? '-' : '';
+                    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+                    if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+                    return `${sign}$${abs}`;
+                  }}
+                />
+                <Tooltip
+                  formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ''}
+                  labelStyle={{ fontFamily: 'var(--font-body)' }}
+                  contentStyle={{
+                    backgroundColor: '#F0EFEA',
+                    border: '1px solid #E6E4DD',
+                    borderRadius: '8px',
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="netWorth"
+                  stroke="#141413"
+                  strokeWidth={2}
+                  fill="url(#colorHistory)"
+                  name="Net Worth"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {historyData.length > 0 && historyData.length < 2 && (
+          <div className="bg-white border border-border-subtle rounded-lg p-6 mb-8 shadow-sm text-center">
+            <p className="font-body text-charcoal/60">Not enough history yet. Check back after more balance polls.</p>
+          </div>
+        )}
 
         {/* Accounts Skeleton */}
         {loading && accounts.length === 0 && (
