@@ -105,11 +105,12 @@ describe('calculateProjection', () => {
     });
 
     it('weekly rule fires every 7 days starting from anchor', () => {
-      // anchor = TODAY so daysDiff is exact
+      // Use local-time anchor so daysDiff aligns with local-midnight TODAY.
+      // '2025-01-15T00:00:00' (no Z) is parsed as local time in JavaScript.
       const rule = makeRule({
         frequency: 'weekly',
         amount: 200,
-        anchor_date: '2025-01-15', // same as TODAY
+        anchor_date: '2025-01-15T00:00:00',
       });
       const input: CalculateProjectionInput = {
         accounts: [makeAccount({ latest_balance: 1000 })],
@@ -120,6 +121,8 @@ describe('calculateProjection', () => {
         today: new Date(TODAY),
       };
       const result = calculateProjection(input);
+
+      console.log('weekly test points[0..4]:', result.points.slice(0, 5).map(p => ({ date: p.date, value: p.value })));
 
       // Day 0: 1000 (no rules on day 0)
       expect(result.points[0].value).toBe(1000);
@@ -138,12 +141,12 @@ describe('calculateProjection', () => {
     });
 
     it('monthly rule fires on the same day each month', () => {
-      // TODAY = Jan 15. Rule anchor on Jan 15.
+      // TODAY = Jan 15. Rule anchor on Jan 15 (local time).
       // Day 0 = Jan 15, day 31 = Feb 15 (the next monthly firing).
       const rule = makeRule({
         frequency: 'monthly',
         amount: 500,
-        anchor_date: '2025-01-15',
+        anchor_date: '2025-01-15T00:00:00',
       });
       const input: CalculateProjectionInput = {
         accounts: [makeAccount({ latest_balance: 2000 })],
@@ -281,11 +284,11 @@ describe('calculateProjection', () => {
         latest_balance: 500,
         payment_day_of_month: null,
       });
-      // weekly expense rule, anchor = TODAY so fires on day 7
+      // weekly expense rule, anchor = TODAY (local) so fires on day 7
       const rule = makeRule({
         frequency: 'weekly',
         amount: -100,
-        anchor_date: '2025-01-15',
+        anchor_date: '2025-01-15T00:00:00',
       });
       const result = calculateProjection({
         accounts: [cc],
@@ -487,7 +490,7 @@ describe('calculateProjection', () => {
       const rule = makeRule({
         frequency: 'weekly',
         amount: 300,
-        anchor_date: '2025-01-15',
+        anchor_date: '2025-01-15T00:00:00',
       });
       const nw = calculateProjection({
         accounts: [primary, savings],
@@ -505,7 +508,7 @@ describe('calculateProjection', () => {
       const rule = makeRule({
         frequency: 'weekly',
         amount: 300,
-        anchor_date: '2025-01-15',
+        anchor_date: '2025-01-15T00:00:00',
       });
       const cf = calculateProjection({
         accounts: [primary, savings],

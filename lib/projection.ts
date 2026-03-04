@@ -55,8 +55,15 @@ export interface CalculateProjectionInput {
  */
 export function calculateProjection(input: CalculateProjectionInput): ProjectionResult {
   const { accounts, rules, days, viewMode, scope } = input;
-  const today = input.today ?? new Date();
-  today.setHours(0, 0, 0, 0);
+  // Normalize to UTC midnight so date arithmetic is timezone-consistent.
+  // Using UTC prevents getUTCDate() from drifting when the input is a UTC
+  // midnight timestamp and the host machine is behind UTC.
+  const rawToday = input.today ?? new Date();
+  const today = new Date(Date.UTC(
+    rawToday.getUTCFullYear(),
+    rawToday.getUTCMonth(),
+    rawToday.getUTCDate()
+  ));
 
   let startingValue = 0;
   let primaryAccountBalance = 0;
@@ -110,7 +117,7 @@ export function calculateProjection(input: CalculateProjectionInput): Projection
     }
 
     if (viewMode === 'cash_flow' && d > 0) {
-      const dayOfMonth = getDate(date);
+      const dayOfMonth = date.getUTCDate();
       for (const cc of creditCards) {
         if (cc.dueDay === dayOfMonth) {
           runningValue -= cc.balance;
@@ -223,30 +230,44 @@ export async function generateProjection(
 }
 
 export function ruleAppliesToDate(rule: RecurringRule, date: Date): boolean {
-  const anchor = new Date(rule.anchor_date);
-  anchor.setHours(0, 0, 0, 0);
+  // Normalize both anchor and date to UTC midnight so timezone-varying inputs
+  // (local-time strings like '2025-01-15T00:00:00' vs UTC '2025-01-15Z') all
+  // resolve to the same UTC calendar day before comparison.
+  const rawAnchor = new Date(rule.anchor_date);
+  const anchor = new Date(Date.UTC(
+    rawAnchor.getUTCFullYear(),
+    rawAnchor.getUTCMonth(),
+    rawAnchor.getUTCDate()
+  ));
 
-  const endDate = rule.end_date ? new Date(rule.end_date) : null;
-  if (endDate) {
-    endDate.setHours(23, 59, 59, 999);
+  const dateUTC = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  ));
+
+  let endDate: Date | null = null;
+  if (rule.end_date) {
+    const rawEnd = new Date(rule.end_date);
+    endDate = new Date(Date.UTC(rawEnd.getUTCFullYear(), rawEnd.getUTCMonth(), rawEnd.getUTCDate()));
   }
 
-  if (date < anchor) return false;
-  if (endDate && date > endDate) return false;
+  if (dateUTC < anchor) return false;
+  if (endDate && dateUTC > endDate) return false;
 
-  const daysDiff = Math.floor(
-    (date.getTime() - anchor.getTime()) / (1000 * 60 * 60 * 24)
+  const daysDiff = Math.round(
+    (dateUTC.getTime() - anchor.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   switch (rule.frequency) {
     case 'once':
-      return isSameDay(date, anchor);
+      return daysDiff === 0;
     case 'weekly':
       return daysDiff % 7 === 0;
     case 'biweekly':
       return daysDiff % 14 === 0;
     case 'monthly':
-      return getDate(date) === getDate(anchor);
+      return dateUTC.getUTCDate() === anchor.getUTCDate();
     default:
       return false;
   }
