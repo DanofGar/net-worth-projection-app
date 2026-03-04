@@ -122,8 +122,6 @@ describe('calculateProjection', () => {
       };
       const result = calculateProjection(input);
 
-      console.log('weekly test points[0..4]:', result.points.slice(0, 5).map(p => ({ date: p.date, value: p.value })));
-
       // Day 0: 1000 (no rules on day 0)
       expect(result.points[0].value).toBe(1000);
       // Day 1–6: 1000 (rule not yet due)
