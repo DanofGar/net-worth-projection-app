@@ -1,0 +1,2 @@
+ALTER TABLE enrollments ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE recurring_rules ALTER COLUMN user_id SET NOT NULL;

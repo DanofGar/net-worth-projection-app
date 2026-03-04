@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 
 // GET /api/accounts - List all accounts for authenticated user with latest balances
@@ -20,23 +20,30 @@ export async function GET() {
     return NextResponse.json({ error: accountsError.message }, { status: 500 });
   }
 
-  // Fetch latest balance for each account
-  const accountsWithBalances = await Promise.all(
-    (accounts || []).map(async (account) => {
-      const { data: balanceData, error: balanceError } = await supabase
-        .from('balances')
-        .select('ledger')
-        .eq('account_id', account.id)
-        .order('polled_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+  // Batch fetch latest balances for all accounts
+  const accountIds = (accounts || []).map(a => a.id);
+  const { data: balancesData, error: balancesError } = await supabase
+    .from('balances')
+    .select('account_id, ledger, polled_at')
+    .in('account_id', accountIds)
+    .order('polled_at', { ascending: false });
 
-      return {
-        ...account,
-        latest_balance: balanceData?.ledger ? parseFloat(balanceData.ledger.toString()) : 0,
-      };
-    })
-  );
+  if (balancesError) {
+    return NextResponse.json({ error: balancesError.message }, { status: 500 });
+  }
+
+  // Deduplicate: keep only the latest balance per account
+  const latestBalances = new Map<string, number>();
+  for (const balance of balancesData || []) {
+    if (!latestBalances.has(balance.account_id)) {
+      latestBalances.set(balance.account_id, parseFloat(balance.ledger.toString()));
+    }
+  }
+
+  const accountsWithBalances = (accounts || []).map(account => ({
+    ...account,
+    latest_balance: latestBalances.get(account.id) ?? 0,
+  }));
 
   return NextResponse.json(accountsWithBalances);
 }

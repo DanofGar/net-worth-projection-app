@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, createServerClient } from '@/lib/supabase';
 import { tellerFetch } from '@/lib/teller';
+import { tellerCallbackSchema } from '@/lib/validations';
 
 export async function POST(req: NextRequest) {
   // Get authenticated user
   const supabase = await createServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { accessToken, enrollment } = await req.json();
+  const body = await req.json();
+  const parsed = tellerCallbackSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Invalid request body', details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const { accessToken, enrollment } = parsed.data;
 
   // 1. Store enrollment with user_id
   const { data: enrollmentRow, error: enrollmentError } = await supabaseAdmin
