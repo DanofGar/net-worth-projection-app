@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, createServerClient } from '@/lib/supabase';
-import { tellerFetch } from '@/lib/teller';
+import { tellerFetch, TellerAccount, TellerBalance } from '@/lib/teller';
 
 export async function POST() {
   const supabase = await createServerClient();
@@ -29,7 +29,7 @@ export async function POST() {
 
   for (const enrollment of enrollments) {
     try {
-      const tellerAccounts = await tellerFetch('/accounts', enrollment.access_token);
+      const tellerAccounts = await tellerFetch<TellerAccount[]>('/accounts', enrollment.access_token);
 
       for (const tellerAccount of tellerAccounts) {
         const { data: accountRow } = await supabaseAdmin
@@ -41,7 +41,7 @@ export async function POST() {
         if (!accountRow) continue;
 
         try {
-          const balance = await tellerFetch(
+          const balance = await tellerFetch<TellerBalance>(
             `/accounts/${tellerAccount.id}/balances`,
             enrollment.access_token
           );

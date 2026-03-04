@@ -42,6 +42,14 @@ interface Account {
   last_polled_at: string | null;
 }
 
+interface Transaction {
+  id: string;
+  description: string;
+  date: string;
+  amount: string;
+  status: string;
+}
+
 interface RecurringRule {
   id: string;
   name: string;
@@ -68,11 +76,10 @@ export default function DashboardPage() {
   const intentionalSignOut = useRef(false);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
-  const [transactions, setTransactions] = useState<Record<string, any[]>>({});
+  const [transactions, setTransactions] = useState<Record<string, Transaction[]>>({});
   const [txLoading, setTxLoading] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [historyData, setHistoryData] = useState<{ date: string; netWorth: number; liquidNetWorth: number }[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [ruleSubmitting, setRuleSubmitting] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -87,7 +94,6 @@ export default function DashboardPage() {
   });
 
   async function fetchHistory() {
-    setHistoryLoading(true);
     try {
       const res = await fetch('/api/history');
       if (res.ok) {
@@ -96,8 +102,6 @@ export default function DashboardPage() {
       }
     } catch {
       // Non-critical, don't show error
-    } finally {
-      setHistoryLoading(false);
     }
   }
 
@@ -443,7 +447,7 @@ export default function DashboardPage() {
         )}
         {txs && txs.length > 0 && (
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {txs.map((tx: any) => (
+            {txs.map((tx) => (
               <div key={tx.id} className="flex justify-between items-center py-1">
                 <div className="flex-1 min-w-0">
                   <p className="font-body text-sm text-charcoal truncate">{tx.description}</p>
@@ -705,6 +709,16 @@ export default function DashboardPage() {
               <p className="font-body text-charcoal/60">No projection data available</p>
             </div>
           ) : (
+            <>
+            {/*
+              Recharts does not support CSS variables in stroke/fill props — it reads
+              values directly from the DOM attribute, not computed styles. The hex
+              values below are intentional design token literals:
+                #D97757 = terra (brand accent)
+                #141413 = charcoal (text/axis)
+                #E6E4DD = border-subtle (grid lines)
+                #F0EFEA = cream (tooltip background)
+            */}
             <ResponsiveContainer width="100%" height={400}>
               <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                 <defs>
@@ -754,6 +768,7 @@ export default function DashboardPage() {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            </>
           )}
         </div>
 
@@ -1123,7 +1138,7 @@ export default function DashboardPage() {
                       </label>
                       <select
                         value={rulesFormData.frequency}
-                        onChange={(e) => setRulesFormData({ ...rulesFormData, frequency: e.target.value as any })}
+                        onChange={(e) => setRulesFormData({ ...rulesFormData, frequency: e.target.value as RecurringRule['frequency'] })}
                         required
                         className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra"
                       >

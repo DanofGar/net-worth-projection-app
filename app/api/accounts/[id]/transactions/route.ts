@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, createServerClient } from '@/lib/supabase';
-import { tellerFetchTransactions } from '@/lib/teller';
+import { tellerFetchTransactions, TellerTransaction } from '@/lib/teller';
 
 export async function GET(
   req: NextRequest,
@@ -29,13 +29,14 @@ export async function GET(
     return NextResponse.json({ error: 'Account not found' }, { status: 404 });
   }
 
-  const enrollment = (account as any).enrollments;
+  type EnrollmentRow = { user_id: string; access_token: string };
+  const enrollment = (account as unknown as { enrollments: EnrollmentRow }).enrollments;
   if (enrollment.user_id !== user.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
   }
 
   try {
-    const transactions = await tellerFetchTransactions(
+    const transactions = await tellerFetchTransactions<TellerTransaction>(
       account.teller_account_id,
       enrollment.access_token,
       { count, from_id }

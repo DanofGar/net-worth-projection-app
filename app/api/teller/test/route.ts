@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { tellerFetch } from '@/lib/teller';
+import { tellerFetch, TellerAccount } from '@/lib/teller';
 
 export async function GET() {
   // Use a sandbox test token from Teller docs
@@ -24,7 +24,7 @@ export async function GET() {
   };
   
   try {
-    const accounts = await tellerFetch('/accounts', testToken);
+    const accounts = await tellerFetch<TellerAccount[]>('/accounts', testToken);
     return NextResponse.json({ success: true, accounts, envCheck });
   } catch (error) {
     return NextResponse.json({ 

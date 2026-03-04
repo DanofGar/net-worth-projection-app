@@ -1,6 +1,6 @@
 'use client';
 
-import { TellerConnect } from 'teller-connect-react';
+import { TellerConnect, TellerConnectEnrollment } from 'teller-connect-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -43,7 +43,7 @@ export default function ConnectPage() {
     checkAuthAndAccounts();
   }, [router, supabase]);
 
-  const handleSuccess = async (authorization: any) => {
+  const handleSuccess = async (authorization: TellerConnectEnrollment) => {
     try {
       // Send to API to store enrollment + fetch accounts
       const response = await fetch('/api/teller/callback', {
@@ -114,7 +114,7 @@ export default function ConnectPage() {
         <div className="inline-block mb-6">
           <TellerConnect
             applicationId={process.env.NEXT_PUBLIC_TELLER_APP_ID!}
-            environment={process.env.NEXT_PUBLIC_TELLER_ENV as any}
+            environment={process.env.NEXT_PUBLIC_TELLER_ENV as 'sandbox' | 'development' | 'production'}
             products={['balance', 'verify']}
             onSuccess={handleSuccess}
             onError={(error) => {
@@ -131,7 +131,7 @@ export default function ConnectPage() {
         </div>
         
         <p className="font-body text-sm text-charcoal/60 max-w-md mx-auto">
-          Can't find your bank? You can also connect using routing and account numbers through the verification flow.
+          Can&apos;t find your bank? You can also connect using routing and account numbers through the verification flow.
         </p>
       </div>
     </div>

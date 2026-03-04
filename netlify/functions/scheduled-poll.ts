@@ -1,6 +1,6 @@
 import { Handler, schedule } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-import { tellerFetch } from '../../lib/teller';
+import { tellerFetch, TellerAccount, TellerBalance } from '../../lib/teller';
 
 // Initialize Supabase admin client (bypasses RLS)
 const supabase = createClient(
@@ -34,7 +34,7 @@ const handler: Handler = async () => {
 
     try {
       // Fetch accounts from Teller
-      const tellerAccounts = await tellerFetch('/accounts', enrollment.access_token);
+      const tellerAccounts = await tellerFetch<TellerAccount[]>('/accounts', enrollment.access_token);
 
       for (const tellerAccount of tellerAccounts) {
         // Get our account record - use maybeSingle to handle missing accounts gracefully
@@ -57,7 +57,7 @@ const handler: Handler = async () => {
 
         // Fetch balance from Teller
         try {
-          const balance = await tellerFetch(
+          const balance = await tellerFetch<TellerBalance>(
             `/accounts/${tellerAccount.id}/balances`,
             enrollment.access_token
           );
@@ -94,7 +94,7 @@ const handler: Handler = async () => {
       // Check for auth errors (token expired/revoked)
       if (err instanceof Error && err.message.includes('401')) {
         console.error(`Auth error for ${enrollment.institution_name} - token may need refresh`);
-        // TODO: Implement token refresh flow or notify user
+        // Future: implement token refresh or user notification for expired enrollments
       }
     }
   }

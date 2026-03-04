@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase';
-import { addDays, isSameDay, getDate } from 'date-fns';
+import { addDays } from 'date-fns';
 
 export type ViewMode = 'net_worth' | 'cash_flow';
 export type Scope = 'total' | 'liquid';

@@ -41,10 +41,10 @@ export default function PrimaryPage() {
           }
           throw new Error('Failed to fetch accounts');
         }
-        const allAccounts = await response.json();
-        const depositoryAccounts = allAccounts.filter((acc: any) => acc.type === 'depository');
+        const allAccounts = await response.json() as Account[];
+        const depositoryAccounts = allAccounts.filter((acc) => acc.type === 'depository');
         setAccounts(depositoryAccounts);
-        const primary = depositoryAccounts.find((acc: any) => acc.is_primary_payment);
+        const primary = depositoryAccounts.find((acc) => acc.is_primary_payment);
         if (primary) {
           setSelectedId(primary.id);
         }

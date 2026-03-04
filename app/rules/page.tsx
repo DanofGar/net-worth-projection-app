@@ -420,7 +420,7 @@ export default function RulesPage() {
                       </label>
                       <select
                         value={formData.frequency}
-                        onChange={(e) => setFormData({ ...formData, frequency: e.target.value as any })}
+                        onChange={(e) => setFormData({ ...formData, frequency: e.target.value as RecurringRule['frequency'] })}
                         required
                         className="w-full px-3 py-2 border border-border-subtle rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-terra"
                       >

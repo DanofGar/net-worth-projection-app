@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, createServerClient } from '@/lib/supabase';
-import { tellerFetch } from '@/lib/teller';
+import { tellerFetch, TellerAccount, TellerBalance } from '@/lib/teller';
 import { tellerCallbackSchema } from '@/lib/validations';
 
 export async function POST(req: NextRequest) {
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Fetch accounts from Teller
-  const accounts = await tellerFetch('/accounts', accessToken);
+  const accounts = await tellerFetch<TellerAccount[]>('/accounts', accessToken);
 
   // 3. Store accounts
   for (const acc of accounts) {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   // 4. Fetch initial balances
   for (const acc of accounts) {
     try {
-      const balances = await tellerFetch(`/accounts/${acc.id}/balances`, accessToken);
+      const balances = await tellerFetch<TellerBalance>(`/accounts/${acc.id}/balances`, accessToken);
       
       const { data: accountRow, error: accountError } = await supabaseAdmin
         .from('accounts')

@@ -228,7 +228,7 @@ async function checkTeller(env, enrollmentAccessToken) {
       const tid = setTimeout(() => controller.abort(), 8000);
 
       const res = await fetch('https://api.teller.io/accounts', {
-        // @ts-ignore
+        // @ts-expect-error - Node fetch supports agent option
         agent,
         signal: controller.signal,
         headers: { Authorization: `Basic ${auth}` },

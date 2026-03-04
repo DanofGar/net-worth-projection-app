@@ -38,10 +38,10 @@ export default function CreditCardsPage() {
           }
           throw new Error('Failed to fetch accounts');
         }
-        const accounts = await response.json();
-        const creditCardAccounts = accounts.filter((acc: any) => acc.subtype === 'credit_card');
+        const accounts = await response.json() as (CreditCard & { subtype: string })[];
+        const creditCardAccounts = accounts.filter((acc) => acc.subtype === 'credit_card');
         setCreditCards(
-          creditCardAccounts.map((acc: any) => ({
+          creditCardAccounts.map((acc) => ({
             id: acc.id,
             name: acc.name,
             last_four: acc.last_four,
