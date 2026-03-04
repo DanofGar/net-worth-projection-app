@@ -65,6 +65,10 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<Record<string, any[]>>({});
+  const [txLoading, setTxLoading] = useState<string | null>(null);
+  const [txError, setTxError] = useState<string | null>(null);
   const [ruleSubmitting, setRuleSubmitting] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [rulesModalError, setRulesModalError] = useState<string | null>(null);
@@ -91,6 +95,50 @@ export default function DashboardPage() {
       toast('error', err instanceof Error ? err.message : 'Failed to refresh');
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function toggleTransactions(accountId: string) {
+    if (expandedAccount === accountId) {
+      setExpandedAccount(null);
+      return;
+    }
+    setExpandedAccount(accountId);
+    if (transactions[accountId]) return;
+    setTxLoading(accountId);
+    setTxError(null);
+    try {
+      const res = await fetch(`/api/accounts/${accountId}/transactions?count=20`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to load transactions');
+      }
+      const data = await res.json();
+      setTransactions((prev) => ({ ...prev, [accountId]: data }));
+    } catch (err) {
+      setTxError(err instanceof Error ? err.message : 'Failed to load transactions');
+    } finally {
+      setTxLoading(null);
+    }
+  }
+
+  async function loadMoreTransactions(accountId: string) {
+    const existing = transactions[accountId] || [];
+    const lastId = existing[existing.length - 1]?.id;
+    if (!lastId) return;
+    setTxLoading(accountId);
+    try {
+      const res = await fetch(`/api/accounts/${accountId}/transactions?count=20&from_id=${lastId}`);
+      if (!res.ok) throw new Error('Failed to load more');
+      const data = await res.json();
+      setTransactions((prev) => ({
+        ...prev,
+        [accountId]: [...(prev[accountId] || []), ...data],
+      }));
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to load more');
+    } finally {
+      setTxLoading(null);
     }
   }
 
@@ -278,6 +326,57 @@ export default function DashboardPage() {
   const currentValueLabel = viewMode === 'net_worth' 
     ? (scope === 'total' ? 'Total Net Worth' : 'Liquid Net Worth')
     : 'Primary Account Balance';
+
+  function renderTransactionSection(accountId: string) {
+    if (expandedAccount !== accountId) return null;
+    const txs = transactions[accountId];
+    const isLoading = txLoading === accountId;
+
+    return (
+      <div className="mt-4 pt-4 border-t border-border-subtle">
+        {isLoading && !txs && (
+          <p className="font-body text-sm text-charcoal/60 animate-pulse">Loading transactions...</p>
+        )}
+        {txError && expandedAccount === accountId && !txs && (
+          <p className="font-body text-sm text-red-600">{txError}</p>
+        )}
+        {txs && txs.length === 0 && (
+          <p className="font-body text-sm text-charcoal/60">No transactions found</p>
+        )}
+        {txs && txs.length > 0 && (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {txs.map((tx: any) => (
+              <div key={tx.id} className="flex justify-between items-center py-1">
+                <div className="flex-1 min-w-0">
+                  <p className="font-body text-sm text-charcoal truncate">{tx.description}</p>
+                  <div className="flex gap-2 items-center">
+                    <span className="font-body text-xs text-charcoal/50">{tx.date}</span>
+                    {tx.status === 'pending' && (
+                      <span className="font-body text-xs text-yellow-600">Pending</span>
+                    )}
+                  </div>
+                </div>
+                <span className={`font-body text-sm font-medium ml-2 whitespace-nowrap ${
+                  parseFloat(tx.amount) >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {formatCurrency(parseFloat(tx.amount))}
+                </span>
+              </div>
+            ))}
+            {txs.length >= 20 && (
+              <button
+                onClick={() => loadMoreTransactions(accountId)}
+                disabled={isLoading}
+                className="w-full py-2 text-sm font-body text-terra hover:underline disabled:opacity-50"
+              >
+                {isLoading ? 'Loading...' : 'Load more'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // Group accounts by type
   const checkingSavings = accounts.filter(acc => 
@@ -606,11 +705,20 @@ export default function DashboardPage() {
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
-                      {account.last_polled_at && (
-                        <p className="font-body text-xs text-charcoal/40 mt-2">
-                          Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
-                        </p>
-                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        {account.last_polled_at && (
+                          <p className="font-body text-xs text-charcoal/40">
+                            Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
+                          </p>
+                        )}
+                        <button
+                          onClick={() => toggleTransactions(account.id)}
+                          className="font-body text-xs text-terra hover:underline"
+                        >
+                          {expandedAccount === account.id ? 'Hide' : 'Transactions'}
+                        </button>
+                      </div>
+                      {renderTransactionSection(account.id)}
                     </motion.div>
                   ))}
                 </div>
@@ -654,11 +762,20 @@ export default function DashboardPage() {
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
-                      {account.last_polled_at && (
-                        <p className="font-body text-xs text-charcoal/40 mt-2">
-                          Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
-                        </p>
-                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        {account.last_polled_at && (
+                          <p className="font-body text-xs text-charcoal/40">
+                            Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
+                          </p>
+                        )}
+                        <button
+                          onClick={() => toggleTransactions(account.id)}
+                          className="font-body text-xs text-terra hover:underline"
+                        >
+                          {expandedAccount === account.id ? 'Hide' : 'Transactions'}
+                        </button>
+                      </div>
+                      {renderTransactionSection(account.id)}
                     </motion.div>
                   ))}
                 </div>
@@ -697,11 +814,20 @@ export default function DashboardPage() {
                       <p className="font-body text-2xl text-charcoal font-semibold">
                         {formatCurrency(account.latest_balance)}
                       </p>
-                      {account.last_polled_at && (
-                        <p className="font-body text-xs text-charcoal/40 mt-2">
-                          Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
-                        </p>
-                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        {account.last_polled_at && (
+                          <p className="font-body text-xs text-charcoal/40">
+                            Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
+                          </p>
+                        )}
+                        <button
+                          onClick={() => toggleTransactions(account.id)}
+                          className="font-body text-xs text-terra hover:underline"
+                        >
+                          {expandedAccount === account.id ? 'Hide' : 'Transactions'}
+                        </button>
+                      </div>
+                      {renderTransactionSection(account.id)}
                     </motion.div>
                   ))}
                 </div>

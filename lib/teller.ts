@@ -38,3 +38,16 @@ export async function tellerFetch(
   
   return response.json();
 }
+
+export async function tellerFetchTransactions(
+  accountId: string,
+  accessToken: string,
+  params?: { count?: number; from_id?: string }
+): Promise<any[]> {
+  const query = new URLSearchParams();
+  if (params?.count) query.set('count', String(params.count));
+  if (params?.from_id) query.set('from_id', params.from_id);
+  const qs = query.toString();
+  const endpoint = `/accounts/${accountId}/transactions${qs ? `?${qs}` : ''}`;
+  return tellerFetch(endpoint, accessToken);
+}
