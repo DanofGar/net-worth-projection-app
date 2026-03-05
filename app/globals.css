@@ -14,3 +14,11 @@ body {
   background: #F0EFEA;
   color: #141413;
 }
+
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid #D97757;
+  outline-offset: 2px;
+}

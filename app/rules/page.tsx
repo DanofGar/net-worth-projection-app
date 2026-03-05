@@ -27,6 +27,7 @@ export default function RulesPage() {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingRule, setEditingRule] = useState<RecurringRule | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     amount: '',
@@ -147,10 +148,6 @@ export default function RulesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this rule?')) {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/rules/${id}`, {
         method: 'DELETE',
@@ -160,6 +157,7 @@ export default function RulesPage() {
         throw new Error('Failed to delete rule');
       }
 
+      setConfirmDeleteId(null);
       fetchRules();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete rule';
@@ -197,19 +195,28 @@ export default function RulesPage() {
       return anchor >= today ? format(anchor, 'MMM d, yyyy') : 'Past';
     }
 
-    let next = anchor;
-    while (next < today) {
-      switch (rule.frequency) {
-        case 'weekly':
-          next = addWeeks(next, 1);
-          break;
-        case 'biweekly':
-          next = addWeeks(next, 2);
-          break;
-        case 'monthly':
-          next = addMonths(next, 1);
-          break;
+    let next: Date;
+    const daysDiff = Math.floor((today.getTime() - anchor.getTime()) / (1000 * 60 * 60 * 24));
+
+    switch (rule.frequency) {
+      case 'weekly': {
+        const periods = Math.ceil(daysDiff / 7);
+        next = addWeeks(anchor, periods);
+        break;
       }
+      case 'biweekly': {
+        const periods = Math.ceil(daysDiff / 14);
+        next = addWeeks(anchor, periods * 2);
+        break;
+      }
+      case 'monthly': {
+        next = addMonths(anchor, Math.ceil(daysDiff / 30));
+        // Adjust: addMonths may undershoot, advance one more if still in past
+        while (next < today) next = addMonths(next, 1);
+        break;
+      }
+      default:
+        return 'Unknown';
     }
 
     if (rule.end_date && next > parseISO(rule.end_date)) {
@@ -244,7 +251,7 @@ export default function RulesPage() {
           <div>
             <Link
               href="/dashboard"
-              className="inline-flex items-center font-body text-charcoal/70 hover:text-charcoal transition-colors mb-2"
+              className="inline-flex items-center font-body text-charcoal/70 hover:text-charcoal transition-colors mb-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-terra rounded"
             >
               <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -255,7 +262,7 @@ export default function RulesPage() {
           </div>
           <button
             onClick={openAddModal}
-            className="bg-terra text-white px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity"
+            className="bg-terra text-white px-6 py-2 rounded-lg font-body hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra"
           >
             + Add Rule
           </button>
@@ -278,7 +285,7 @@ export default function RulesPage() {
             </p>
             <button
               onClick={openAddModal}
-              className="bg-terra text-white px-8 py-3 rounded-lg font-body hover:opacity-90 transition-opacity"
+              className="bg-terra text-white px-8 py-3 rounded-lg font-body hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra"
             >
               Add Your First Rule
             </button>
@@ -289,9 +296,10 @@ export default function RulesPage() {
               {rules.map((rule, index) => (
                 <motion.div
                   key={rule.id}
+                  layout
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20, height: 0 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0, overflow: 'hidden' }}
                   transition={{ delay: index * 0.05 }}
                   className={`bg-white rounded-lg p-6 shadow-sm border-l-4 ${
                     rule.amount >= 0
@@ -343,18 +351,37 @@ export default function RulesPage() {
                       </label>
                       <button
                         onClick={() => openEditModal(rule)}
-                        className="px-3 py-1 text-sm font-body text-charcoal/70 hover:text-charcoal border border-border-subtle rounded hover:bg-cream transition-colors"
+                        className="px-3 py-1 text-sm font-body text-charcoal/70 hover:text-charcoal border border-border-subtle rounded hover:bg-cream transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(rule.id)}
-                        className="px-3 py-1 text-sm font-body text-red-600 hover:text-red-700 border border-red-200 rounded hover:bg-red-50 transition-colors"
+                        onClick={() => setConfirmDeleteId(rule.id)}
+                        className="px-3 py-1 text-sm font-body text-red-600 hover:text-red-700 border border-red-200 rounded hover:bg-red-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                       >
                         Delete
                       </button>
                     </div>
                   </div>
+                  {confirmDeleteId === rule.id && (
+                    <div className="mt-4 pt-4 border-t border-border-subtle">
+                      <p className="font-body text-sm text-charcoal mb-2">Delete this rule permanently?</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="flex-1 px-3 py-1.5 border border-border-subtle rounded font-body text-sm text-charcoal hover:bg-cream transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => handleDelete(rule.id)}
+                          className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-body text-sm hover:bg-red-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -479,13 +506,13 @@ export default function RulesPage() {
                       <button
                         type="button"
                         onClick={closeModal}
-                        className="flex-1 px-4 py-2 border border-border-subtle rounded-lg font-body text-charcoal hover:bg-cream transition-colors"
+                        className="flex-1 px-4 py-2 border border-border-subtle rounded-lg font-body text-charcoal hover:bg-cream transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-terra"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-terra text-white rounded-lg font-body hover:opacity-90 transition-opacity"
+                        className="flex-1 px-4 py-2 bg-terra text-white rounded-lg font-body hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-terra"
                       >
                         {editingRule ? 'Update' : 'Create'}
                       </button>

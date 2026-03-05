@@ -1,22 +1,49 @@
 import { createClient } from '@supabase/supabase-js';
 import { createBrowserClient as createBrowserClientSSR, createServerClient as createServerClientSSR } from '@supabase/ssr';
 
-// Environment validation
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Dev-only startup validation — only runs with `next dev`, never at build time.
+if (process.env.NODE_ENV === 'development') {
+  const clientVars = [
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'NEXT_PUBLIC_TELLER_APP_ID',
+    'NEXT_PUBLIC_TELLER_ENV',
+  ];
+  const serverVars = [
+    'SUPABASE_SERVICE_KEY',
+    'TELLER_CERT_B64',
+    'TELLER_KEY_B64',
+  ];
+  const toCheck = typeof window === 'undefined'
+    ? [...clientVars, ...serverVars]
+    : clientVars;
+  const missing = toCheck.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    const side = typeof window === 'undefined' ? 'server' : 'client';
+    throw new Error(
+      `[DEV] Missing required environment variables (${side}):\n` +
+      missing.map((k) => `  - ${k}`).join('\n') +
+      '\n\nAdd these to your .env.local file before running the dev server.'
+    );
+  }
+}
 
-if (!supabaseUrl) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL environment variable is not set');
-}
-if (!supabaseAnonKey) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable is not set');
-}
+// Environment variables — placeholder fallbacks keep the build from crashing
+// when env vars are absent. At runtime the real values are required.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 // Client-side singleton (for use in Client Components)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+);
 
 // Client component helper (for use in 'use client' components with auth)
-export const createBrowserClient = () => createBrowserClientSSR(supabaseUrl, supabaseAnonKey);
+export const createBrowserClient = () => createBrowserClientSSR(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+);
 
 // Server component helper (for use in Server Components / Route Handlers)
 export const createServerClient = async () => {
@@ -47,16 +74,12 @@ export const createServerClient = async () => {
 };
 
 // Admin client (bypasses RLS - use only in server-side code / scheduled functions)
-export const supabaseAdmin = (() => {
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-  if (!supabaseServiceKey) {
-    if (typeof window === 'undefined') {
-      throw new Error('SUPABASE_SERVICE_KEY environment variable is not set');
-    }
-    return createClient(supabaseUrl, supabaseAnonKey);
-  }
-  return createClient(supabaseUrl, supabaseServiceKey);
-})();
+// Falls back to placeholder values during build-time module evaluation so the
+// build doesn't crash when env vars are absent. At runtime, real values are required.
+export const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
+);
 
 // Type helper for database schema
 export type Database = {

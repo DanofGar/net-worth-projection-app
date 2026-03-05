@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createBrowserClient } from '@/lib/supabase';
 
 interface Account {
@@ -25,7 +26,7 @@ export default function PrimaryPage() {
     async function checkAuthAndFetchAccounts() {
       // Check authentication
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         router.push('/login');
         return;
@@ -59,37 +60,28 @@ export default function PrimaryPage() {
   }, [router, supabase]);
 
   const handleSelect = async (accountId: string) => {
-    // Update state only after database operations succeed
     try {
-      // Clear all primary flags
-      const { error: clearError } = await supabase
-        .from('accounts')
-        .update({ is_primary_payment: false })
-        .eq('type', 'depository');
-
-      if (clearError) {
-        console.error('Failed to clear primary flags:', clearError);
-        alert('Failed to update primary account. Please try again.');
-        return;
+      // Clear existing primary
+      const currentPrimary = accounts.find(a => a.is_primary_payment);
+      if (currentPrimary && currentPrimary.id !== accountId) {
+        await fetch(`/api/accounts/${currentPrimary.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_primary_payment: false }),
+        });
       }
-
-      // Set selected account as primary
-      const { error: setError } = await supabase
-        .from('accounts')
-        .update({ is_primary_payment: true })
-        .eq('id', accountId);
-
-      if (setError) {
-        console.error('Failed to set primary account:', setError);
-        alert('Failed to update primary account. Please try again.');
-        return;
-      }
-
-      // Only update UI state after successful database operations
+      // Set new primary
+      const response = await fetch(`/api/accounts/${accountId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_primary_payment: true }),
+      });
+      if (!response.ok) throw new Error('Failed to update primary account');
       setSelectedId(accountId);
+      setAccounts(prev => prev.map(a => ({ ...a, is_primary_payment: a.id === accountId })));
     } catch (error) {
       console.error('Error updating primary account:', error);
-      alert('An error occurred. Please try again.');
+      alert('Failed to update. Please try again.');
     }
   };
 
@@ -100,7 +92,7 @@ export default function PrimaryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
-        <p className="font-body text-charcoal">Loading accounts...</p>
+        <p className="font-body text-charcoal/60">Loading accounts...</p>
       </div>
     );
   }
@@ -108,6 +100,12 @@ export default function PrimaryPage() {
   return (
     <div className="min-h-screen bg-cream p-8">
       <div className="max-w-2xl mx-auto">
+        <Link href="/onboarding/credit-cards" className="inline-flex items-center font-body text-charcoal/70 hover:text-charcoal transition-colors mb-8">
+          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </Link>
         <h1 className="font-heading text-4xl text-charcoal mb-2">
           Primary Payment Account
         </h1>

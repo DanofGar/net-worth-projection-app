@@ -56,7 +56,7 @@ export default function LandingPage() {
           transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
           className="text-center mb-24"
         >
-          <h1 className="font-heading text-6xl md:text-7xl lg:text-8xl text-charcoal mb-6 leading-tight">
+          <h1 className="font-heading text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-charcoal mb-6 leading-tight">
             See Your Financial
             <br />
             <span className="text-terra">Future, 60 Days Ahead</span>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createBrowserClient } from '@/lib/supabase';
 
 interface Account {
@@ -59,7 +60,7 @@ export default function AccountsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
-        <p className="font-body text-charcoal">Loading accounts...</p>
+        <p className="font-body text-charcoal/60">Loading accounts...</p>
       </div>
     );
   }
@@ -67,6 +68,12 @@ export default function AccountsPage() {
   return (
     <div className="min-h-screen bg-cream p-8">
       <div className="max-w-2xl mx-auto">
+        <Link href="/connect" className="inline-flex items-center font-body text-charcoal/70 hover:text-charcoal transition-colors mb-8">
+          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </Link>
         <h1 className="font-heading text-4xl text-charcoal mb-2">
           Your Accounts
         </h1>
