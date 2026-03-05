@@ -38,7 +38,8 @@ export async function middleware(req: NextRequest) {
                         req.nextUrl.pathname.startsWith('/favicon');
   const isResetPassword = req.nextUrl.pathname === '/reset-password';
   const isUpdatePassword = req.nextUrl.pathname === '/update-password';
-  const isPublicRoute = isLoginPage || isLandingPage || isApiRoute || isPublicAsset || isResetPassword || isUpdatePassword;
+  const isAuthCallback = req.nextUrl.pathname === '/auth/callback';
+  const isPublicRoute = isLoginPage || isLandingPage || isApiRoute || isPublicAsset || isResetPassword || isUpdatePassword || isAuthCallback;
 
   // Redirect unauthenticated users to login (except public routes).
   // Pass ?expired=1 when the request had auth cookies but no valid user,

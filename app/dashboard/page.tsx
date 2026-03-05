@@ -685,7 +685,7 @@ export default function DashboardPage() {
                   <div
                     key={i}
                     className="flex-1 bg-charcoal/5 rounded-t"
-                    style={{ height: `${30 + Math.random() * 60}%` }}
+                    style={{ height: `${30 + ((i * 37 + 13) % 60)}%` }}
                   />
                 ))}
               </div>
@@ -848,221 +848,214 @@ export default function DashboardPage() {
 
         {/* Accounts Skeleton */}
         {loading && accounts.length === 0 && (
-          <div className="space-y-6 animate-pulse">
-            <div>
-              <div className="h-7 bg-charcoal/10 rounded w-48 mb-4" />
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-white border border-border-subtle rounded-lg p-6">
-                    <div className="h-5 bg-charcoal/10 rounded w-32 mb-3" />
-                    <div className="h-4 bg-charcoal/10 rounded w-24 mb-4" />
-                    <div className="h-8 bg-charcoal/10 rounded w-28" />
+          <div className="animate-pulse">
+            <div
+              className="grid gap-6"
+              style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}
+            >
+              {['Checking & Savings', 'Credit Cards', 'Retirement'].map((label) => (
+                <div key={label}>
+                  <div className="h-5 bg-charcoal/10 rounded w-36 mb-1" />
+                  <div className="h-4 bg-charcoal/10 rounded w-20 mb-4" />
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="bg-white border border-border-subtle rounded-lg p-4">
+                        <div className="h-4 bg-charcoal/10 rounded w-32 mb-2" />
+                        <div className="h-3 bg-charcoal/10 rounded w-24 mb-3" />
+                        <div className="h-7 bg-charcoal/10 rounded w-28" />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
         {/* Accounts Summary */}
         {accounts.length > 0 && (
-          <div className="space-y-6">
-            {/* Checking/Savings */}
-            {checkingSavings.length > 0 && (
-              <div>
-                <h2 className="font-heading text-2xl text-charcoal mb-4">Checking & Savings</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {checkingSavings.map((account, index) => (
-                    <motion.div
-                      key={account.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-body text-lg text-charcoal font-medium">
-                          {account.name}
-                        </h3>
-                        <button
-                          onClick={() => handleDisconnect(account.id)}
-                          disabled={disconnecting === account.id}
-                          className="text-xs font-body text-charcoal/40 hover:text-red-600 transition-colors"
-                        >
-                          {disconnecting === account.id ? '...' : 'Remove'}
-                        </button>
-                      </div>
-                      <p className="font-body text-sm text-charcoal/60 mb-4">
-                        {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
-                        {account.is_primary_payment && (
-                          <span className="ml-2 text-terra">(Primary)</span>
-                        )}
-                      </p>
-                      <p className="font-body text-2xl text-charcoal font-semibold">
-                        {formatCurrency(account.latest_balance)}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        {account.last_polled_at && (
-                          <p className="font-body text-xs text-charcoal/40">
-                            Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
-                          </p>
-                        )}
-                        <button
-                          onClick={() => toggleTransactions(account.id)}
-                          className="font-body text-xs text-terra hover:underline"
-                        >
-                          {expandedAccount === account.id ? 'Hide' : 'Transactions'}
-                        </button>
-                      </div>
-                      {renderTransactionSection(account.id)}
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            )}
+          (() => {
+            const activeGroups = [
+              { key: 'checkingSavings', label: 'Checking & Savings', accounts: checkingSavings },
+              { key: 'creditCards', label: 'Credit Cards', accounts: creditCards },
+              { key: 'retirement', label: 'Retirement', accounts: retirement },
+            ].filter((g) => g.accounts.length > 0);
 
-            {/* Credit Cards */}
-            {creditCards.length > 0 && (
-              <div>
-                <h2 className="font-heading text-2xl text-charcoal mb-4">Credit Cards</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {creditCards.map((account, index) => (
-                    <motion.div
-                      key={account.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-body text-lg text-charcoal font-medium">
-                          {account.name}
-                        </h3>
-                        <button
-                          onClick={() => handleDisconnect(account.id)}
-                          disabled={disconnecting === account.id}
-                          className="text-xs font-body text-charcoal/40 hover:text-red-600 transition-colors"
-                        >
-                          {disconnecting === account.id ? '...' : 'Remove'}
-                        </button>
-                      </div>
-                      <p className="font-body text-sm text-charcoal/60 mb-2">
-                        {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
-                      </p>
-                      {account.payment_day_of_month && (
-                        <p className="font-body text-sm text-charcoal/60 mb-4">
-                          Payment due day: {account.payment_day_of_month}
+            return (
+              <div
+                className="grid gap-6 items-start"
+                style={{ gridTemplateColumns: `repeat(${activeGroups.length}, minmax(0, 1fr))` }}
+              >
+                {activeGroups.map((group) => {
+                  const groupTotal = group.accounts.reduce(
+                    (sum, a) => sum + (a.latest_balance ?? 0),
+                    0
+                  );
+
+                  return (
+                    <div key={group.key} className="flex flex-col">
+                      {/* Column header */}
+                      <div className="mb-3">
+                        <h2 className="font-heading text-lg text-charcoal">{group.label}</h2>
+                        <p className="font-body text-sm text-charcoal/50">
+                          {formatCurrency(groupTotal)}
                         </p>
-                      )}
-                      {(() => {
-                        const ledger = account.latest_balance;
-                        const available = account.latest_available;
-                        if (available != null) {
-                          const creditLimit = ledger + available;
-                          const utilization = creditLimit > 0 ? ledger / creditLimit : 0;
-                          const pct = Math.round(utilization * 100);
-                          const barColor =
-                            pct < 30 ? '#22c55e' :
-                            pct < 50 ? '#eab308' :
-                            pct < 75 ? '#f97316' :
-                            '#ef4444';
-                          return (
-                            <>
-                              <p className="font-body text-2xl text-charcoal font-semibold">
-                                {formatCurrency(ledger)}
-                              </p>
-                              <p className="font-body text-xs text-charcoal/60 mt-1 mb-2">
-                                {formatCurrency(ledger)} / {formatCurrency(creditLimit)} ({pct}%)
-                              </p>
-                              <div className="w-full bg-border-subtle rounded-full h-1.5 mb-2">
-                                <div
-                                  className="h-1.5 rounded-full transition-all"
-                                  style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
-                                />
-                              </div>
-                            </>
-                          );
-                        }
-                        return (
-                          <p className="font-body text-2xl text-charcoal font-semibold">
-                            {formatCurrency(ledger)}
-                          </p>
-                        );
-                      })()}
-                      <div className="flex items-center justify-between mt-2">
-                        {account.last_polled_at && (
-                          <p className="font-body text-xs text-charcoal/40">
-                            Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
-                          </p>
-                        )}
-                        <button
-                          onClick={() => toggleTransactions(account.id)}
-                          className="font-body text-xs text-terra hover:underline"
-                        >
-                          {expandedAccount === account.id ? 'Hide' : 'Transactions'}
-                        </button>
                       </div>
-                      {renderTransactionSection(account.id)}
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {/* Retirement */}
-            {retirement.length > 0 && (
-              <div>
-                <h2 className="font-heading text-2xl text-charcoal mb-4">Retirement</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {retirement.map((account, index) => (
-                    <motion.div
-                      key={account.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ scale: 1.02, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      className="bg-white border border-border-subtle rounded-lg p-6 shadow-sm"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-body text-lg text-charcoal font-medium">
-                          {account.name}
-                        </h3>
-                        <button
-                          onClick={() => handleDisconnect(account.id)}
-                          disabled={disconnecting === account.id}
-                          className="text-xs font-body text-charcoal/40 hover:text-red-600 transition-colors"
-                        >
-                          {disconnecting === account.id ? '...' : 'Remove'}
-                        </button>
+                      {/* Cards */}
+                      <div className="space-y-3">
+                        {group.key === 'creditCards'
+                          ? group.accounts.map((account, index) => (
+                              <motion.div
+                                key={account.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                className="bg-white border border-border-subtle rounded-lg p-4 shadow-sm"
+                              >
+                                {/* Name + remove */}
+                                <div className="flex justify-between items-start mb-1">
+                                  <h3 className="font-body text-sm text-charcoal font-medium leading-tight">
+                                    {account.name}
+                                  </h3>
+                                  <button
+                                    onClick={() => handleDisconnect(account.id)}
+                                    disabled={disconnecting === account.id}
+                                    className="text-xs font-body text-charcoal/30 hover:text-red-500 transition-colors ml-2 flex-shrink-0"
+                                  >
+                                    {disconnecting === account.id ? '...' : '×'}
+                                  </button>
+                                </div>
+
+                                {/* Subtype + last four */}
+                                <p className="font-body text-xs text-charcoal/50 mb-3">
+                                  {account.subtype}
+                                  {account.last_four ? ` •••• ${account.last_four}` : ''}
+                                  {account.is_primary_payment && (
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-terra ml-2 align-middle" />
+                                  )}
+                                </p>
+
+                                {/* Balance + utilization */}
+                                {(() => {
+                                  const ledger = account.latest_balance;
+                                  const available = account.latest_available;
+                                  if (available != null) {
+                                    const creditLimit = ledger + available;
+                                    const utilization = creditLimit > 0 ? ledger / creditLimit : 0;
+                                    const pct = Math.round(utilization * 100);
+                                    const barColor =
+                                      pct < 30 ? '#22c55e' :
+                                      pct < 50 ? '#eab308' :
+                                      pct < 75 ? '#f97316' :
+                                      '#ef4444';
+                                    return (
+                                      <>
+                                        <p className="font-body text-2xl text-charcoal font-semibold">
+                                          {formatCurrency(ledger)}
+                                        </p>
+                                        <p className="font-body text-xs text-charcoal/50 mt-0.5 mb-1.5">
+                                          {formatCurrency(ledger)} / {formatCurrency(creditLimit)} ({pct}%)
+                                        </p>
+                                        <div className="w-full bg-border-subtle rounded-full h-1.5 mb-2">
+                                          <div
+                                            className="h-1.5 rounded-full transition-all"
+                                            style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+                                          />
+                                        </div>
+                                      </>
+                                    );
+                                  }
+                                  return (
+                                    <p className="font-body text-2xl text-charcoal font-semibold">
+                                      {formatCurrency(ledger)}
+                                    </p>
+                                  );
+                                })()}
+
+                                {/* Footer */}
+                                <div className="flex items-center justify-between mt-2">
+                                  {account.last_polled_at ? (
+                                    <p className="font-body text-xs text-charcoal/35">
+                                      Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
+                                    </p>
+                                  ) : <span />}
+                                  <button
+                                    onClick={() => toggleTransactions(account.id)}
+                                    className="font-body text-xs text-terra hover:underline"
+                                  >
+                                    {expandedAccount === account.id ? 'Hide' : 'Transactions'}
+                                  </button>
+                                </div>
+                                {renderTransactionSection(account.id)}
+                              </motion.div>
+                            ))
+                          : group.accounts.map((account, index) => (
+                              <motion.div
+                                key={account.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                                className="bg-white border border-border-subtle rounded-lg p-4 shadow-sm"
+                              >
+                                {/* Name + remove */}
+                                <div className="flex justify-between items-start mb-1">
+                                  <h3 className="font-body text-sm text-charcoal font-medium leading-tight">
+                                    {account.name}
+                                  </h3>
+                                  <button
+                                    onClick={() => handleDisconnect(account.id)}
+                                    disabled={disconnecting === account.id}
+                                    className="text-xs font-body text-charcoal/30 hover:text-red-500 transition-colors ml-2 flex-shrink-0"
+                                  >
+                                    {disconnecting === account.id ? '...' : '×'}
+                                  </button>
+                                </div>
+
+                                {/* Subtype + last four + primary dot */}
+                                <p className="font-body text-xs text-charcoal/50 mb-3">
+                                  {account.subtype}
+                                  {account.last_four ? ` •••• ${account.last_four}` : ''}
+                                  {account.is_primary_payment && (
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-terra ml-2 align-middle" />
+                                  )}
+                                </p>
+
+                                {/* Balance */}
+                                <p className="font-body text-2xl text-charcoal font-semibold">
+                                  {formatCurrency(account.latest_balance)}
+                                </p>
+
+                                {/* Footer */}
+                                <div className="flex items-center justify-between mt-2">
+                                  {account.last_polled_at ? (
+                                    <p className="font-body text-xs text-charcoal/35">
+                                      Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
+                                    </p>
+                                  ) : <span />}
+                                  <button
+                                    onClick={() => toggleTransactions(account.id)}
+                                    className="font-body text-xs text-terra hover:underline"
+                                  >
+                                    {expandedAccount === account.id ? 'Hide' : 'Transactions'}
+                                  </button>
+                                </div>
+                                {renderTransactionSection(account.id)}
+                              </motion.div>
+                            ))
+                        }
                       </div>
-                      <p className="font-body text-sm text-charcoal/60 mb-4">
-                        {account.subtype} {account.last_four ? `•••• ${account.last_four}` : ''}
+
+                      {/* Column total */}
+                      <p className="font-body text-xs text-charcoal/40 mt-3 pt-3 border-t border-border-subtle">
+                        Total: {formatCurrency(groupTotal)}
                       </p>
-                      <p className="font-body text-2xl text-charcoal font-semibold">
-                        {formatCurrency(account.latest_balance)}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        {account.last_polled_at && (
-                          <p className="font-body text-xs text-charcoal/40">
-                            Updated {formatDistanceToNow(parseISO(account.last_polled_at), { addSuffix: true })}
-                          </p>
-                        )}
-                        <button
-                          onClick={() => toggleTransactions(account.id)}
-                          className="font-body text-xs text-terra hover:underline"
-                        >
-                          {expandedAccount === account.id ? 'Hide' : 'Transactions'}
-                        </button>
-                      </div>
-                      {renderTransactionSection(account.id)}
-                    </motion.div>
-                  ))}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </div>
+            );
+          })()
         )}
 
         {/* Rules Modal */}
